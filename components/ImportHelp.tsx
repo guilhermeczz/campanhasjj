@@ -32,8 +32,8 @@ export default function ImportHelp({ marcas, vendedores, produtos }: { marcas: M
     </div>
 
     <details className="mt-5 rounded-xl border border-white/10 bg-black/20 p-4" open={busca ? true : undefined}>
-      <summary className="cursor-pointer text-sm font-bold">O que preencher em cada coluna? <span className="ml-1 font-normal text-white/60">7 obrigatórias + 4 opcionais</span></summary>
-      <p className="mt-3 text-sm leading-6 text-white/60">Uma linha representa um produto da nota. Data do faturamento, devolução, cancelamento e situação são opcionais. Confira abaixo os campos obrigatórios.</p>
+      <summary className="cursor-pointer text-sm font-bold">O que preencher em cada coluna? <span className="ml-1 font-normal text-white/60">6 obrigatórias + 5 opcionais</span></summary>
+      <p className="mt-3 text-sm leading-6 text-white/60">Uma linha representa um produto da nota. Data do faturamento, cliente, devolução, cancelamento e situação são opcionais. Confira abaixo os campos obrigatórios.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">{campos.map((campo) => <article key={campo.chave} className="rounded-xl border border-white/10 p-4">
         <h3 className="text-sm font-bold">{campo.titulo} <span className={`ml-1 text-xs font-normal ${campo.opcional ? "text-white/55" : "text-jj-yellow"}`}>{campo.opcional ? "Opcional" : "Obrigatório"}</span></h3>
         <p className="mt-2 text-xs leading-5 text-white/65">{campo.ajuda}</p>

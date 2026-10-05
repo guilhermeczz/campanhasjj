@@ -195,15 +195,17 @@ test('dados legados não faturados são excluídos mesmo contendo data', async (
   await db.exec("update public.vendas set status='orcamento' where item_id='LEGADO'");
   assert.equal((await ranking()).length, 0);
 });
-test('bootstrap do vendedor entrega apenas seu cadastro, vendas e posições reais', async () => {
+test('bootstrap do vendedor entrega apenas seu cadastro e sua posição, sem pontos ou valores', async () => {
   await importar([venda(), venda({ vendedor: 'maria.souza', valor_bruto: 2000 })]);
   const data = await boot(joaoToken);
   assert.equal(data.vendedores.length, 1);
   assert.equal(data.vendedores[0].id, vendedores['joao.silva']);
-  assert.equal(data.vendas.length, 1);
+  assert.deepEqual(data.vendas, []);
+  assert.deepEqual(data.pontuacoes, []);
+  assert.deepEqual(data.produtos, []);
   assert.equal(data.rankings.length, 1);
   assert.equal(data.rankings[0].posicao, 2, 'ranking deve ser calculado antes do filtro de privacidade');
-  assert.ok(data.rankings.every(r => r.vendedor_id === vendedores['joao.silva']));
+  assert.deepEqual(Object.keys(data.rankings[0]).sort(), ['campanha_id', 'marca_id', 'marca_nome', 'posicao']);
   assert.ok(!JSON.stringify(data).includes('maria.souza'));
   assert.ok(!JSON.stringify(data).includes('senha'));
 });
@@ -296,17 +298,17 @@ test('pontos proporcionais são calculados com duas casas decimais por item', as
   assert.equal(data.pontuacoes[0].total_pontos, 3.13);
 });
 
-test('cada produto usa sua própria regra dentro da marca e vendedor vê apenas seus pontos', async () => {
+test('cada produto usa sua própria regra dentro da marca e vendedor vê só a posição', async () => {
   await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ nome: 'Produto de 100 reais', marca_id: marcas.WAGO, valor_por_ponto: 100 })]);
   await importar([venda({ valor_bruto: 600 }), venda({ produto: 'Produto de 100 reais', valor_bruto: 300 }), venda({ vendedor: 'maria.souza', valor_bruto: 2000 })]);
   const admin = await boot();
   assert.equal(admin.rankings[0].vendedor_id, vendedores['maria.souza']);
   const joao = await boot(joaoToken);
-  assert.equal(joao.pontuacoes.length, 1);
-  assert.equal(joao.pontuacoes[0].total_pontos, 6);
+  assert.deepEqual(joao.pontuacoes, []);
+  assert.deepEqual(joao.vendas, []);
+  assert.equal(joao.rankings.length, 1);
   assert.equal(joao.rankings[0].posicao, 2);
-  assert.equal(joao.rankings[0].total_pontos, 6);
-  assert.ok(joao.pontuacoes.every((p) => p.vendedor_id === vendedores['joao.silva']));
+  assert.deepEqual(Object.keys(joao.rankings[0]).sort(), ['campanha_id', 'marca_id', 'marca_nome', 'posicao']);
   assert.equal(joao.produtos.length, 0);
   assert.ok(!JSON.stringify(joao).includes('maria.souza'));
 });

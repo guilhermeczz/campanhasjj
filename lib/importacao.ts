@@ -1,5 +1,5 @@
 import type { Campanha, Marca, Produto, Venda, VendedorFull } from "./types";
-import { CAMPOS_PLANILHA, chaveDoCabecalho } from "./importacaoGuia";
+import { CAMPOS_PLANILHA, CLIENTE_PADRAO, chaveDoCabecalho } from "./importacaoGuia";
 import { calcularPontosReferencia, calcularPontosProduto, regraProduto } from "./pontuacao";
 
 export const EXCEL_HEADERS_COPA = [
@@ -139,7 +139,7 @@ export function validarLinhasCopa(tabela: unknown[][], cadastros: CadastrosImpor
     const vendedorInformado = textoCelula(campo("vendedor"));
     const vendedor = cadastros.vendedores.find((v) => v.username.toLowerCase() === vendedorInformado.toLowerCase() && v.ativo && v.role === "vendedor");
     const produto = textoCelula(campo("produto"));
-    const cliente_id = textoCelula(campo("cliente_id"));
+    const cliente_id = textoCelula(campo("cliente_id")) || CLIENTE_PADRAO;
     const codigoMarca = textoCelula(campo("marca_id"));
     const marcas = cadastros.marcas.filter((m) => m.id === codigoMarca || (Boolean(m.codigo_externo) && m.codigo_externo === codigoMarca));
     const marca = marcas.length === 1 ? marcas[0] : undefined;
@@ -163,7 +163,6 @@ export function validarLinhasCopa(tabela: unknown[][], cadastros: CadastrosImpor
     else if (marca && !produtoCadastrado) erros.push(produtos.length > 1 ? "Produto: identificação ambígua nesta marca; corrija o cadastro em Produtos" : "Produto: não cadastrado nesta marca; cadastre em Produtos ou consulte o código ou nome na ajuda");
     else if (produtoCadastrado?.ativo === false) erros.push("Produto: cadastro inativo; ative o produto antes de importar");
     else if (produtoCadastrado && (regra.preco <= 0 || regra.pontos <= 0)) erros.push("Pontos: configure a regra no cadastro do produto");
-    if (!cliente_id) erros.push("Código do cliente: preencha o código; use o mesmo em todas as compras desse cliente");
     if (!marca) erros.push(marcas.length > 1 ? "Código da marca: há cadastros com o mesmo código; corrija em Marcas" : "Código da marca: não encontrado; consulte o código na ajuda desta página");
     if (quantidade === null || quantidade <= 0) erros.push("Quantidade: informe um número maior que zero, como 10");
     if (!data_faturamento) erros.push("Data do faturamento: use uma data válida, como 01/10/2026 09:30:00");

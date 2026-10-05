@@ -16,8 +16,7 @@ export const MENU_ADMIN: MenuItem[] = [
   { href: "/admin/vendedores", label: "Vendedores", icon: "users" }
 ];
 export const MENU_VENDEDOR: MenuItem[] = [
-  { href: "/painel", label: "Minhas campanhas", icon: "ranking" },
-  { href: "/painel/vendas", label: "Minhas vendas", icon: "sales" }
+  { href: "/painel", label: "Minha posição", icon: "ranking" }
 ];
 
 function NavIcon({ name }: { name: string }) {

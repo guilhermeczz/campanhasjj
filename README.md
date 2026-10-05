@@ -6,12 +6,12 @@ Aplicativo web responsivo em preto e amarelo para a Copa dos Campeões. Cada mar
 
 - `/` encaminha para `/login`. Uma sessão válida abre a área correspondente ao perfil.
 - Diretoria: resultados por campanha, importação de vendas, auditoria de importações, campanhas, marcas/produtos e vendedores.
-- Vendedor: somente suas classificações e suas vendas. A posição considera todos os participantes, mas os dados dos outros vendedores não são enviados ao seu navegador.
+- Vendedor: somente sua posição em cada campanha, sem pontos, valores, vendas ou dados de outros vendedores. Pontos e faturamento são visíveis somente para a diretoria, inclusive no banco.
 - Login por usuário e senha de seis dígitos. Senhas armazenadas como bcrypt; sessão em cookie HttpOnly por até 12 horas; cinco tentativas incorretas bloqueiam o usuário por 15 minutos.
 - O app exige o Supabase configurado e as migrations aplicadas. Não há fallback com dados demo nem salvamento de vendas no navegador.
 - A exclusão de vendedores exige confirmação em um diálogo com ação vermelha. Ela revoga as sessões, impede novos acessos e remove o usuário da listagem; as vendas vinculadas permanecem no histórico da diretoria.
 - A exclusão de produtos segue o mesmo padrão: botão vermelho com confirmação, remove o produto do catálogo e bloqueia novas importações com aquele nome/código, preservando vendas, pontos e histórico. O mesmo nome/código pode ser recadastrado como um novo produto.
-- O painel da diretoria mostra pontos de todos os vendedores, inclusive zerados, busca e evolução acumulada por data de faturamento. A classificação por faturamento fica em seção separada. Cada vendedor vê apenas sua própria evolução.
+- O painel da diretoria mostra pontos de todos os vendedores, inclusive zerados, busca e evolução acumulada por data de faturamento. A classificação por faturamento fica em seção separada. Cada vendedor vê apenas sua própria posição, sem pontos ou valores.
 - Correções e devoluções atualizam a curva do período; ela apresenta os valores atuais por data de faturamento. O botão Atualizar resultados busca os dados mais recentes.
 
 ## Executar localmente
@@ -47,7 +47,7 @@ Esse comando faz consultas de diagnóstico sem modificar registros. Após a migr
 
 Na área da diretoria, abra **Importar vendas** e baixe o modelo. O arquivo tem somente a aba **Vendas**, com os cabeçalhos prontos e sem exemplos, explicações ou abas extras. Preencha a partir da linha 2, selecione o arquivo, revise e confirme.
 
-O modelo usa títulos em português e **8 campos obrigatórios**. As três colunas finais são opcionais. A tela inclui ajuda pesquisável, exemplos por coluna, perguntas frequentes, consulta de códigos de marcas e logins com botão Copiar, além de correções organizadas por linha. Modelos antigos com os nomes técnicos continuam aceitos.
+O modelo usa títulos em português e traz **7 colunas: 6 obrigatórias + data** (recomendada, mas opcional). Cliente, devolução, cancelamento e situação podem ser adicionados como colunas extras quando necessário. A tela inclui ajuda pesquisável, exemplos por coluna, perguntas frequentes, consulta de códigos de marcas e logins com botão Copiar, além de correções organizadas por linha. Modelos antigos com os nomes técnicos continuam aceitos.
 
 | Coluna no modelo | Conteúdo |
 | --- | --- |
@@ -56,9 +56,9 @@ O modelo usa títulos em português e **8 campos obrigatórios**. As três colun
 | Produto | Código ou nome exato de um produto ativo e com regra configurada na marca informada; consulte a ajuda da página. |
 | Quantidade | Quantidade maior que zero. |
 | Código da marca | ID ou código externo exato, disponível na consulta da página. |
-| Data do faturamento | Data real do faturamento; texto sem fuso é interpretado como horário de São Paulo (UTC−03 no período da Copa). |
+| Data do faturamento | Opcional, mas recomendada: data real do faturamento; texto sem fuso é interpretado como horário de São Paulo (UTC−03 no período da Copa). Em branco usa a data da importação. |
 | Valor da venda (R$) | Total bruto do item, em reais, antes dos descontos. |
-| Código do cliente | Código estável do cliente, preferencialmente formatado como Texto para preservar zeros. |
+| Código do cliente | Opcional (fora do modelo): código estável do cliente para o desempate por clientes distintos. Sem essa coluna, o desempate fica neutro e decide pelo faturamento geral. |
 | Devolução (R$) | Opcional: devolução acumulada do item. Em branco vale zero. |
 | Cancelamento (R$) | Opcional: cancelamento parcial acumulado. Em branco vale zero. |
 | Situação | Opcional: `faturado`, `cancelado` ou `pendente`. Em branco significa `faturado`. |
@@ -91,7 +91,7 @@ O cálculo definitivo é feito no banco: `(valor_bruto - valor_devolucao - valor
 
 A marca pode ser informada por nome, código externo ou ID. Quando o arquivo não tem marca, selecione-a na tela; ela será aplicada somente às linhas sem marca. O relatório real `vendas e nf-e` é reconhecido pelos cabeçalhos, sem renomear a aba. Código é opcional e conserva zeros à esquerda. As regras antigas gravadas como `valor_por_ponto` mantêm seu significado original por compatibilidade; o novo cadastro grava `pontos_por_real` e `preco_venda`.
 
-O ranking e a premiação continuam seguindo faturamento líquido e os critérios de desempate existentes; pontos são informativos e separados. O vendedor recebe do backend somente suas vendas, seus pontos e seus resultados, mesmo que tente chamar a API diretamente.
+O ranking e a premiação continuam seguindo faturamento líquido e os critérios de desempate existentes; pontos são informativos e separados. O vendedor recebe do backend somente sua posição por campanha; pontos, vendas e faturamento ficam restritos à diretoria.
 
 Importar o mesmo código ou nome na mesma marca atualiza o cadastro. Código existente permite atualizar a descrição sem duplicar o produto. Conflitos de identificação bloqueiam o lote. Alterar o fator recalcula os pontos das vendas vinculadas, sem alterar faturamento ou classificação. Preço ou fator vazio, zero, negativo ou com mais de duas casas decimais é rejeitado. Produtos desconhecidos, inativos ou excluídos bloqueiam a importação de vendas. Excluir exige confirmação e não apaga vendas nem pontos; para reutilizar o nome/código, cadastre ou importe um novo produto.
 
@@ -122,7 +122,7 @@ npm run typecheck
 npm run build
 ```
 
-Os testes executam as migrations em PostgreSQL via PGlite, inclusive permissões, hashes e funções como usuário `anon`. Cobrem os 13 cenários obrigatórios da campanha, empates no terceiro lugar, limites de datas, cancelamentos, reimportação, privacidade, expiração de sessão, bloqueio de login e cadastros. Também verificam os dois modelos Excel, pontos por valor líquido, recálculo, tentativa de adulterar pontos, exclusão de acesso e de produto, datas, valores, zeros em códigos, fórmulas e planilhas inválidas. Esse banco de testes fica em memória; não modifica o Supabase real.
+Os testes executam as migrations em PostgreSQL via PGlite, inclusive permissões, hashes e funções como usuário `anon`. Cobrem os 13 cenários obrigatórios da campanha, empates no terceiro lugar, limites de datas, cancelamentos, reimportação, privacidade, expiração de sessão, bloqueio de login e cadastros. Também verificam os dois modelos Excel, pontos por valor líquido, recálculo, tentativa de adulterar pontos, exclusão de acesso e de produto, posição restrita do vendedor, datas, valores, zeros em códigos, fórmulas e planilhas inválidas. Esse banco de testes fica em memória; não modifica o Supabase real.
 
 Depois de `npm test`, `node scripts/check-products-file.mjs "caminho-do-arquivo.xlsx"` testa o relatório AMANCO em banco temporário: leitura, cadastro, reimportação, pontos de uma venda simulada por produto, auditoria e desfazer. O arquivo real com 339 produtos passou nessa validação. O aplicativo verifica `versao_regras = 3`; versões antigas do backend precisam ser atualizadas, seguidas da migração de auditoria. O usuário já confirmou ter aplicado o backend atual.
 

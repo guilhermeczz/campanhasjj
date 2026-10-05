@@ -51,13 +51,13 @@ O cliente precisará atualizar cadastros somente quando surgir um novo produto, 
 
 Use uma campanha e um vendedor destinados à validação. O teste abaixo grava vendas no banco conectado; não use códigos de notas reais para vendas simuladas. Ao terminar, reenvie os mesmos itens com Situação = cancelado para zerar a contribuição dos testes, preservando o registro.
 
-1. Baixar o modelo em Importar vendas. Deve abrir apenas a aba Vendas, com os cabeçalhos.
-2. Preencher um item de R$ 100 para um produto com fator 1,5, quantidade 1, um vendedor ativo, cliente identificado, código de item exclusivo e data dentro da campanha.
+1. Baixar o modelo em Importar vendas. Deve abrir apenas a aba Vendas, com as 7 colunas.
+2. Preencher um item de R$ 100 para um produto com fator 1,5, quantidade 1, um vendedor ativo, código de item exclusivo e data dentro da campanha (cliente é opcional).
 3. Revisar e confirmar. Diretoria deve mostrar 150 pontos para esse vendedor; outro vendedor sem vendas deve aparecer com zero.
 4. Clicar em Ver evolução. O acumulado deve ser 150 na data do faturamento. O total geral e o filtro individual precisam coincidir quando apenas esse vendedor tiver vendas.
 5. Reenviar exatamente o mesmo Código do item: deve atualizar, sem virar 300 pontos.
 6. Reenviar o item com Devolução = 20: líquido de R$ 80 e 120 pontos. Reenviar como cancelado: contribuição zero.
-7. Entrar como vendedor em outra janela: somente seus dados, sem pontuação de colegas. Usar Atualizar meus pontos após uma nova importação.
+7. Entrar como vendedor em outra janela: somente a posição em cada campanha, sem pontos, valores ou vendas. A diretoria continua vendo tudo.
 8. Testar em celular: seleção da campanha, busca de vendedor, gráfico, revisão da planilha e confirmação.
 
 A evolução usa a data do faturamento e os valores atuais das vendas. Correções refazem a curva; ela não é um histórico das versões de cada upload.
@@ -101,4 +101,4 @@ Para executar localmente após fechar o servidor: `npm.cmd run dev`. Com ele abe
 
 Testes de banco executam em memória; não modificam o Supabase real. Revisão visual e importação autenticada no navegador continuam sendo etapas da validação manual, pois não há navegador conectado nesta sessão.
 
-Validação concluída: 90 testes aprovados e compilação de produção aprovada. A nova suíte `test/auditoria.test.mjs` verifica isolamento, prévias, paginação até 5.000 linhas, reaplicação da migração e restauração transacional; `test/backend.test.mjs` cobre exclusão de produto com preservação de vendas. HTTP: 10 páginas disponíveis e 7 operações de API protegidas. Os 339 produtos do arquivo real passaram por cadastro e reimportação em banco temporário, com totais, evolução, auditoria e reversão conferidos contra o PostgreSQL. Nenhuma importação ou migração foi executada no Supabase real nesta etapa.
+Validação concluída: 91 testes aprovados e compilação de produção aprovada. A nova suíte `test/auditoria.test.mjs` verifica isolamento, prévias, paginação até 5.000 linhas, reaplicação da migração e restauração transacional; `test/backend.test.mjs` cobre exclusão de produto com preservação de vendas. HTTP: 10 páginas disponíveis e 7 operações de API protegidas. Os 339 produtos do arquivo real passaram por cadastro e reimportação em banco temporário, com totais, evolução, auditoria e reversão conferidos contra o PostgreSQL. Nenhuma importação ou migração foi executada no Supabase real nesta etapa.

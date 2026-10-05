@@ -15,7 +15,8 @@ Data: 2026-10-05. Projeto: `C:\campanha-jj`. Repo remoto: `https://github.com/gu
    - Núcleo já existia: `supabase/migration_backend_seguro.sql` (`excluido_em` + `jj_excluir_produto`), `supabase/migration_exclusao_produtos.sql`, `app/admin/produtos/page.tsx` (botão vermelho + `ConfirmDelete`), `app/api/produtos/route.ts` (DELETE), `lib/store.tsx:excluirProduto`, `components/ConfirmDelete.tsx` (tipo produto), `lib/server.ts:58` (mensagem de migração pendente).
    - Verificado: `node scripts/build-products-migration.mjs` sem diff (migração derivada em sync com backend).
    - Adicionado: teste backend em `test/backend.test.mjs` (`excluir produto remove do catálogo, preserva vendas e libera recadastro`), `jj_excluir_produto` em `scripts/check-supabase.mjs`, docs em `README.md` + `ENTREGA.md` (fluxo + quando rodar `migration_exclusao_produtos.sql`), contagem 86 -> 90 testes.
-   - Validação: `npm test` = 90 pass; `npm run build` ok (inclui `/admin/produtos` e `/api/produtos`).
+   - Validação: `npm test` = 91 pass; `npm run build` ok (inclui `/admin/produtos` e `/api/produtos`).
+   - Modelo de vendas enxuto (pedido do usuário): `lib/importacaoGuia.ts:MODELO_VENDAS` com 7 colunas (Código do item, Vendedor, Produto, Quantidade, Código da marca, Data do faturamento, Valor da venda). Cliente virou opcional (`CLIENTE_PADRAO = "NAO-INFORMADO"` quando ausente; sem a coluna, o desempate por clientes fica neutro). Sem mudança no banco — o frontend sempre envia um `cliente_id` válido.
 3. Regra de pontos confirmada ao usuário: SIM, multiplicação (ver seção 3).
 4. Ranking: explicado que hoje é só faturamento; usuário escolheu "Exibir os dois" (faturamento + pontos lado a lado). MAPEADO, NÃO IMPLEMENTADO (ver seção 4).
 5. Decimais: confirmado cálculo proporcional com 2 casas (ver seção 3).
@@ -44,6 +45,12 @@ Implementação sugerida (sem mudar prêmios nem DB):
 - Em `app/admin/page.tsx` e `app/painel/page.tsx`: ajustar subtítulos; vendedor vê só os próprios nas duas visões (respeitar privacidade atual: `rankings` já filtrado por `vendedor_id`).
 - Não alterar `jj_calcular_ranking()` nem prêmios nesta etapa; se um dia pontos valerem prêmio, será migração SQL + testes novos.
 - Testes/docs: acrescentar teste de ordenação client-side (ex.: `test/acompanhamento.test.ts` ou novo `ranking-pontos.test.ts`), atualizar `README.md:93-94,108-114`, `ENTREGA.md`, `STATUS.md`.
+
+## 4b. Privacidade do vendedor: só posição (pedido do usuário, implementado)
+- Regra: vendedor vê apenas sua posição por campanha, sem pontos, valores, vendas ou diferença para outros. Pontos/faturamento só no ADMIN, inclusive no banco (`jj_bootstrap` devolve `vendas=[]`, `pontuacoes=[]` e rankings mínimos `campanha_id/marca_id/marca_nome/posicao` para não-admin).
+- UI: `app/painel/page.tsx` reescrito (cards de posição, sem pontos/evolução/vendas); `app/painel/vendas/page.tsx` redireciona para `/painel`; menu vendedor só "Minha posição" (`components/Sidebar.tsx`); `CopaRanking` `apenasVendedor` reduzido a posição.
+- Posição continua calculada sobre todos no PostgreSQL e filtrada por vendedor (rank real, sem vazar colegas).
+- Banco real: reaplicar `migration_backend_seguro.sql` (preserva dados) + `migration_auditoria_importacoes.sql` + `migration_exclusao_produtos.sql` (regenerada do backend; ordem: backend → auditoria → exclusão).
 
 ## 5. Exclusão de produtos (como está)
 - Backend: `jj_excluir_produto(p_token,p_id,p_confirmar)` — só admin, exige `p_confirmar=true`, `pg_advisory_xact_lock(7482028)`, soft delete (`ativo=false, excluido_em=clock_timestamp()`). Vendas/pontos preservados. Mesmo nome/código pode ser recadastrado com novo ID; editar ID excluído bloqueia ("Cadastre ou importe um novo produto").

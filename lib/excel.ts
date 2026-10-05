@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { CAMPOS_PLANILHA, chaveDoCabecalho } from "./importacaoGuia";
+import { CAMPOS_PLANILHA, MODELO_VENDAS, chaveDoCabecalho } from "./importacaoGuia";
 import {
   LIMITE_ARQUIVO, LIMITE_LINHAS, validarLinhasCopa,
   type CadastrosImportacao, type LinhaCopaValidada
@@ -40,9 +40,9 @@ export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao
 
 export function criarModeloCopa(_cadastros?: CadastrosImportacao): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
-  const titulos = CAMPOS_PLANILHA.map((campo) => campo.titulo);
-  const vendas = XLSX.utils.aoa_to_sheet([titulos]);
-  vendas["!cols"] = CAMPOS_PLANILHA.map((campo) => ({ wch: campo.chave === "produto" ? 30 : 25 }));
+  const campos = MODELO_VENDAS.map((chave) => CAMPOS_PLANILHA.find((campo) => campo.chave === chave)!);
+  const vendas = XLSX.utils.aoa_to_sheet([campos.map((campo) => campo.titulo)]);
+  vendas["!cols"] = campos.map((campo) => ({ wch: campo.chave === "produto" ? 30 : 25 }));
   XLSX.utils.book_append_sheet(wb, vendas, "Vendas");
   return wb;
 }

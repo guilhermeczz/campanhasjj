@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { EXCEL_HEADERS_COPA, parseDataFaturamento, parseNumeroBR, validarLinhasCopa, type CadastrosImportacao } from "../lib/importacao";
 import { criarModeloCopa, lerPlanilhaCopa } from "../lib/excel";
 import * as XLSX from "xlsx";
-import { CAMPOS_PLANILHA } from "../lib/importacaoGuia";
+import { CAMPOS_PLANILHA, CLIENTE_PADRAO, MODELO_VENDAS } from "../lib/importacaoGuia";
 
 const cadastros: CadastrosImportacao = {
   vendedores: [{ id: "vendedor-1", username: "joao.silva", nome: "João Silva", ativo: true, role: "vendedor" }],
@@ -66,38 +66,53 @@ test("cabeçalhos incompletos ou repetidos e planilha vazia são rejeitados", ()
   assert.throws(() => validarLinhasCopa([[...EXCEL_HEADERS_COPA, "item_id"], linha()], cadastros), /colunas repetidas/);
 });
 
-test("abatimentos, cliente e status são validados antes do envio", () => {
+test("abatimentos e status são validados antes do envio; cliente ausente usa padrão", () => {
   assert.match(validar({ valor_bruto: 100, valor_devolucao: 60, valor_cancelamento: 50 }).erro!, /superar/);
-  assert.match(validar({ cliente_id: "" }).erro!, /Código do cliente: preencha/);
+  assert.equal(validar({ cliente_id: "" }).erro, undefined);
+  assert.equal(validar({ cliente_id: "" }).cliente_id, CLIENTE_PADRAO);
   assert.match(validar({ status: "orçamento" }).erro!, /Situação: use/);
   assert.equal(validar({ status: "cancelado" }).faturamento_liquido, 0);
   assert.equal(validar({ status: "pendente" }).faturamento_liquido, 0);
 });
 
-test("modelo de vendas contém somente uma aba com cabeçalhos e nenhum exemplo ou explicação", async () => {
+test("modelo de vendas tem 7 colunas, uma aba, sem exemplo ou explicação", async () => {
   const wb = criarModeloCopa(cadastros);
   assert.deepEqual(wb.SheetNames, ["Vendas"]);
-  assert.deepEqual(XLSX.utils.sheet_to_json(wb.Sheets.Vendas, { header: 1 }), [CAMPOS_PLANILHA.map(c => c.titulo)]);
+  const titulosModelo = [...MODELO_VENDAS].map((chave) => CAMPOS_PLANILHA.find((c) => c.chave === chave)!.titulo);
+  assert.deepEqual(titulosModelo, ["Código do item", "Vendedor", "Produto", "Quantidade", "Código da marca", "Data do faturamento", "Valor da venda (R$)"]);
+  assert.deepEqual(XLSX.utils.sheet_to_json(wb.Sheets.Vendas, { header: 1 }), [titulosModelo]);
   await assert.rejects(lerPlanilhaCopa(arquivo(wb), cadastros), /não tem dados/);
-  XLSX.utils.sheet_add_aoa(wb.Sheets.Vendas, [linhaModelo()], { origin: "A2" });
+  const valoresModelo = [...MODELO_VENDAS].map((chave) => linhaModelo()[CAMPOS_PLANILHA.findIndex((c) => c.chave === chave)]);
+  XLSX.utils.sheet_add_aoa(wb.Sheets.Vendas, [valoresModelo], { origin: "A2" });
   const rows = await lerPlanilhaCopa(arquivo(wb), cadastros);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].erro, undefined);
+  assert.equal(rows[0].cliente_id, CLIENTE_PADRAO);
 });
 
 test("leitura do Excel preserva zeros de códigos e bloqueia fórmulas", async () => {
-  const wb = criarModeloCopa(cadastros);
-  XLSX.utils.sheet_add_aoa(wb.Sheets.Vendas, [linhaModelo()], { origin: "A2" });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([CAMPOS_PLANILHA.map((c) => c.titulo), linhaModelo()]), "Vendas");
   wb.Sheets.Vendas.H2 = { t: "n", v: 123, z: "000000" };
   assert.equal((await lerPlanilhaCopa(arquivo(wb), cadastros))[0].cliente_id, "000123");
   wb.Sheets.Vendas.G2 = { t: "n", v: 1000, f: "500+500" };
   await assert.rejects(lerPlanilhaCopa(arquivo(wb), cadastros), /fórmulas/);
 });
 
-test("modelo simplificado aceita 7 campos e preenche valores opcionais com segurança", async () => {
+test("coluna de cliente pode ser removida e o desempate fica neutro", async () => {
+  const semCliente = CAMPOS_PLANILHA.filter((campo) => campo.chave !== "cliente_id");
+  const valores = linhaModelo().filter((_, i) => CAMPOS_PLANILHA[i].chave !== "cliente_id");
+  const [result] = validarLinhasCopa([semCliente.map((campo) => campo.titulo), valores], cadastros);
+  assert.equal(result.erro, undefined);
+  assert.equal(result.cliente_id, CLIENTE_PADRAO);
+  assert.equal(result.faturamento_liquido, 900);
+});
+
+test("modelo simplificado aceita 6 obrigatórias e preenche opcionais com segurança", async () => {
   const obrigatorios = CAMPOS_PLANILHA.filter((campo) => !campo.opcional);
   const valores = linhaModelo({ valor_devolucao: "", valor_cancelamento: "", status: "" });
-  assert.equal(obrigatorios.length, 7);
+  assert.equal(obrigatorios.length, 6);
+  assert.deepEqual([...MODELO_VENDAS], ["item_id", "vendedor", "produto", "quantidade", "marca_id", "data_faturamento", "valor_bruto"]);
   const result = validarLinhasCopa([obrigatorios.map((campo) => campo.titulo), valores.filter((_, i) => !CAMPOS_PLANILHA[i].opcional)], cadastros)[0];
   assert.equal(result.erro, undefined);
   assert.equal(result.valor_devolucao, 0);
@@ -105,11 +120,12 @@ test("modelo simplificado aceita 7 campos e preenche valores opcionais com segur
   assert.equal(result.status, "faturado");
   assert.equal(result.faturamento_liquido, 1000.5);
   const wb = criarModeloCopa(cadastros);
-  XLSX.utils.sheet_add_aoa(wb.Sheets.Vendas, [valores], { origin: "A2" });
+  const valoresModelo = [...MODELO_VENDAS].map((chave) => valores[CAMPOS_PLANILHA.findIndex((c) => c.chave === chave)]);
+  XLSX.utils.sheet_add_aoa(wb.Sheets.Vendas, [valoresModelo], { origin: "A2" });
   const [lida] = await lerPlanilhaCopa(arquivo(wb), cadastros);
   assert.equal(lida.erro, undefined);
   assert.equal(lida.faturamento_liquido, 1000.5);
-  assert.equal(lida.cliente_id, "000123");
+  assert.equal(lida.cliente_id, CLIENTE_PADRAO);
 });
 
 test("data ausente ou vazia usa um único instante de importação e respeita o período em São Paulo", () => {

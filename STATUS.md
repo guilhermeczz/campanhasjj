@@ -48,4 +48,9 @@ O backend principal está em `supabase/migration_backend_seguro.sql`, já aplica
 3. Importação real pendente de sessão de diretoria na aplicação: `vendas_e_nf-e_528186446572103.xlsx`, na pasta WhatsApp `transfers/2026-40` informada. Aba `vendas e nf-e`, A1:D340. Selecionar AMANCO na tela e revisar os 339 produtos. O usuário cadastrará os vendedores. Conferir campanhas reais no acesso autenticado. Não foram fornecidas credenciais de diretoria nem navegador conectado; não tentar senhas de demonstração no banco real.
 4. Revisão visual no navegador pendente: ferramenta de navegação não encontrou navegador disponível nesta sessão. Não afirmar que houve inspeção visual.
 
+## Atualização: vendedor vê só a posição (pedido do usuário)
+- `jj_bootstrap` restrito: não-admin recebe `vendas=[]`, `pontuacoes=[]` e rankings mínimos (`campanha_id/marca_id/marca_nome/posicao`). Posição continua calculada sobre todos no PostgreSQL. `migration_exclusao_produtos.sql` regenerada do backend. Banco real: reaplicar backend (preserva dados) + auditoria + exclusão, nessa ordem.
+- Tela `/painel` reescrita: cards de posição por campanha, sem pontos/valores/evolução/vendas. `/painel/vendas` redireciona para `/painel`. Menu do vendedor só "Minha posição".
+- Testes backend/auditoria atualizados para a nova privacidade. `npm test` 91 pass, `npm run build` e `typecheck` ok.
+
 Servidor de desenvolvimento iniciado em http://127.0.0.1:3000. Cache de desenvolvimento em `.next-dev`, separado do build de produção em `.next`.

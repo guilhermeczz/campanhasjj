@@ -18,6 +18,8 @@ interface Dados {
 export interface ResultadoImportacao { inseridas: number; atualizadas: number; total: number; auditoria_id?: string }
 interface Store extends Dados {
   loading: boolean; error: string | null;
+  campanhaSelecionada: string;
+  setCampanhaSelecionada: (id: string) => void;
   recarregar: () => Promise<void>;
   salvarCampanha: (item: Campanha) => Promise<void>;
   salvarVendedor: (item: VendedorFull) => Promise<void>;
@@ -34,6 +36,7 @@ const Ctx = createContext<Store>({} as Store);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [dados, setDados] = useState<Dados>(EMPTY);
+  const [campanhaSelecionada, setCampanhaSelecionada] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
@@ -77,7 +80,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await api("/api/produtos", { method: "DELETE", body: JSON.stringify({ id, confirmar: true }) });
     await recarregar();
   }
-  return <Ctx.Provider value={{ ...dados, loading, error, recarregar,
+  return <Ctx.Provider value={{ ...dados, loading, error, recarregar, campanhaSelecionada, setCampanhaSelecionada,
     salvarCampanha: item => salvar("campanhas", item),
     salvarVendedor: item => salvar("vendedores", item),
     salvarMarca: item => salvar("marcas", item),

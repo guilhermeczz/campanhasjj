@@ -229,25 +229,29 @@ begin
     'produtos',(select coalesce(jsonb_agg(to_jsonb(p) order by p.nome),'[]'::jsonb) from public.produtos p where u.role='admin' and p.excluido_em is null),
     'vendedores',(select coalesce(jsonb_agg(jsonb_build_object('id',v.id,'username',v.username,'nome',v.nome,'role',v.role,'ativo',v.ativo) order by v.nome),'[]'::jsonb)
       from public.vendedores v where v.excluido_em is null and (u.role='admin' or v.id=u.id)),
-    'vendas',(select coalesce(jsonb_agg(to_jsonb(v)||jsonb_build_object('marca',m.nome,'marca_nome',m.nome,'vendedor_nome',vend.nome,'campanha',coalesce(c.nome,v.campanha)) order by v.data_faturamento desc,v.id),'[]'::jsonb)
+    -- O vendedor recebe somente sua posição por campanha. Pontos, vendas e faturamento ficam com a diretoria.
+    'vendas',(select case when u.role='admin' then (select coalesce(jsonb_agg(to_jsonb(v)||jsonb_build_object('marca',m.nome,'marca_nome',m.nome,'vendedor_nome',vend.nome,'campanha',coalesce(c.nome,v.campanha)) order by v.data_faturamento desc,v.id),'[]'::jsonb)
       from public.vendas v left join public.marcas m on m.id=v.marca_id
-      left join public.vendedores vend on vend.id=v.vendedor_id left join public.campanhas c on c.id=v.campanha_id
-      where u.role='admin' or v.vendedor_id=u.id),
-    'rankings',(select coalesce(jsonb_agg(to_jsonb(r)||jsonb_build_object('total_pontos',coalesce((
-        select sum(v.pontos) from public.vendas v join public.campanhas c on c.id=r.campanha_id
-        where v.vendedor_id=r.vendedor_id and v.marca_id=r.marca_id and v.status='faturado'
-          and v.data_faturamento>=c.data_inicio::timestamp at time zone 'America/Sao_Paulo'
-          and v.data_faturamento<(c.data_fim+1)::timestamp at time zone 'America/Sao_Paulo'
-      ),0)) order by r.campanha_id,r.posicao,r.vendedor_id),'[]'::jsonb)
+      left join public.vendedores vend on vend.id=v.vendedor_id left join public.campanhas c on c.id=v.campanha_id)
+      else '[]'::jsonb end),
+    'rankings',(select coalesce(jsonb_agg(case when u.role='admin'
+        then to_jsonb(r)||jsonb_build_object('total_pontos',coalesce((
+          select sum(v.pontos) from public.vendas v join public.campanhas c on c.id=r.campanha_id
+          where v.vendedor_id=r.vendedor_id and v.marca_id=r.marca_id and v.status='faturado'
+            and v.data_faturamento>=c.data_inicio::timestamp at time zone 'America/Sao_Paulo'
+            and v.data_faturamento<(c.data_fim+1)::timestamp at time zone 'America/Sao_Paulo'
+        ),0))
+        else jsonb_build_object('campanha_id',r.campanha_id,'marca_id',r.marca_id,'marca_nome',r.marca_nome,'posicao',r.posicao)
+      end order by r.campanha_id,r.posicao,r.vendedor_id),'[]'::jsonb)
       from public.jj_calcular_ranking() r where u.role='admin' or r.vendedor_id=u.id),
-    'pontuacoes',(select coalesce(jsonb_agg(to_jsonb(p) order by p.campanha_id,p.vendedor_id),'[]'::jsonb) from (
+    'pontuacoes',(select case when u.role='admin' then (select coalesce(jsonb_agg(to_jsonb(p) order by p.campanha_id,p.vendedor_id),'[]'::jsonb) from (
       select c.id as campanha_id,v.vendedor_id,sum(v.pontos) as total_pontos
       from public.campanhas c join public.vendas v on v.marca_id=c.marca_id
         and v.data_faturamento>=c.data_inicio::timestamp at time zone 'America/Sao_Paulo'
         and v.data_faturamento<(c.data_fim+1)::timestamp at time zone 'America/Sao_Paulo'
-      where c.tipo='faturamento_marca' and v.status='faturado' and (u.role='admin' or v.vendedor_id=u.id)
+      where c.tipo='faturamento_marca' and v.status='faturado'
       group by c.id,v.vendedor_id
-    ) p)
+    ) p) else '[]'::jsonb end)
   ) into resultado;
   return resultado;
 end $$;

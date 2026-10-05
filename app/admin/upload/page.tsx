@@ -123,7 +123,7 @@ export default function UploadPage() {
           <p className="section-eyebrow">Passo 1</p>
           <h2 id="modelo-titulo" className="mt-2 text-xl font-semibold">Comece pelo modelo</h2>
           <p className="mt-2 text-sm leading-6 text-white/65">Baixe a planilha com as colunas prontas e preencha uma linha por produto vendido. Uma única aba, sem exemplos ou explicações no arquivo.</p>
-          <p className="mt-3 rounded-xl bg-white/5 p-3 text-xs leading-5 text-white/65"><strong className="text-white">Só 7 campos obrigatórios.</strong> Data em branco usa a data da importação para vendas novas e mantém a anterior nos reenvios. Devolução e cancelamento em branco valem zero. Situação em branco significa faturado.</p>
+          <p className="mt-3 rounded-xl bg-white/5 p-3 text-xs leading-5 text-white/65"><strong className="text-white">Modelo com 7 colunas.</strong> Data em branco usa a data da importação para vendas novas e mantém a anterior nos reenvios. Cliente, devolução, cancelamento e situação são opcionais: em branco valem zero/faturado. Sem a coluna de cliente, o desempate por clientes fica neutro.</p>
           <button onClick={baixarModelo} disabled={ocupado} className="btn-primary mt-5 inline-flex items-center gap-2 disabled:opacity-40">
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" /></svg>
             Baixar modelo Excel

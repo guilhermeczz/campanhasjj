@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import AppShell from "@/components/AppShell";
@@ -9,13 +8,12 @@ import CopaRanking from "@/components/CopaRanking";
 import TeamProgress from "@/components/TeamProgress";
 
 export default function AdminDashboard() {
-  const { campanhas, rankings, vendas, vendedores, recarregar, loading } = useStore();
-  const [selecionada, setSelecionada] = useState("");
+  const { campanhas, rankings, vendas, vendedores, recarregar, loading, campanhaSelecionada, setCampanhaSelecionada } = useStore();
   const porMarca = campanhas.filter((c) => c.tipo === "faturamento_marca" && c.marca_id);
-  const campanha = porMarca.find((c) => c.id === selecionada) || porMarca.find((c) => c.ativa) || porMarca[0];
+  const campanha = porMarca.find((c) => c.id === campanhaSelecionada) || porMarca.find((c) => c.ativa) || porMarca[0];
   const linhas = campanha ? rankings.filter((r) => r.campanha_id === campanha.id) : [];
   return <AppShell role="admin" title="Acompanhamento das campanhas" subtitle="Consulte os pontos da equipe e a evolução de cada vendedor por campanha.">
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-white/60">{porMarca.filter((c) => c.ativa).length} campanhas ativas</p><div className="flex flex-wrap gap-2"><button type="button" className="btn-ghost" disabled={loading} onClick={() => void recarregar()}>Atualizar resultados</button><Link href="/admin/upload" className="btn-primary">Importar vendas</Link></div></div>
-    {!campanha ? <div className="empty-state"><h2 className="text-lg font-bold">Prepare sua primeira campanha</h2><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">Escolha uma marca, o período de faturamento e os prêmios. Depois, importe a planilha de vendas para acompanhar os resultados.</p><Link href="/admin/campanhas" className="btn-primary mt-5">Criar campanha</Link></div> : <div className="space-y-5"><CampaignPicker campanhas={porMarca} value={campanha.id} onChange={setSelecionada} /><TeamProgress key={campanha.id} campanha={campanha} vendas={vendas} vendedores={vendedores} /><details className="card p-5"><summary className="cursor-pointer font-semibold">Classificação e prêmios por faturamento</summary><div className="mt-5"><CopaRanking campanha={campanha} linhas={linhas} /></div></details></div>}
+    {!campanha ? <div className="empty-state"><h2 className="text-lg font-bold">Prepare sua primeira campanha</h2><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">Escolha uma marca, o período de faturamento e os prêmios. Depois, importe a planilha de vendas para acompanhar os resultados.</p><Link href="/admin/campanhas" className="btn-primary mt-5">Criar campanha</Link></div> : <div className="space-y-5"><CampaignPicker campanhas={porMarca} value={campanha.id} onChange={setCampanhaSelecionada} /><TeamProgress key={campanha.id} campanha={campanha} vendas={vendas} vendedores={vendedores} /><details className="card p-5"><summary className="cursor-pointer font-semibold">Classificação e prêmios por faturamento</summary><div className="mt-5"><CopaRanking campanha={campanha} linhas={linhas} /></div></details></div>}
   </AppShell>;
 }

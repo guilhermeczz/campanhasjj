@@ -112,10 +112,11 @@ test('desfazer: restaura venda atualizada inteira, remove nova e preserva venda 
   assert.equal((await listar()).registros.filter(r => r.pode_desfazer).length, 0);
   assert.equal((await listar()).bytes_restauracao, 0);
   const boot = await rpc('jj_bootstrap', [vendedor]);
-  assert.equal(boot.vendas.length, 2);
-  assert.ok(boot.vendas.every(v => v.vendedor === 'joao.silva'));
-  assert.equal(boot.pontuacoes.reduce((s, p) => s + p.total_pontos, 0), 300);
-  assert.equal(boot.rankings[0].faturamento_liquido_marca, 200);
+  assert.deepEqual(boot.vendas, []);
+  assert.deepEqual(boot.pontuacoes, []);
+  assert.equal(boot.rankings.length, 1);
+  assert.equal(boot.rankings[0].posicao, 1);
+  assert.deepEqual(Object.keys(boot.rankings[0]).sort(), ['campanha_id', 'marca_id', 'marca_nome', 'posicao']);
 });
 
 test('desfazer: confirmação obrigatória, última importação somente e repetição rejeitada', async () => {
