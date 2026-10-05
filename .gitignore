@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.next-dev/
+.env*.local
+.env
+test/build-copa/
+.test-build/
+*.tsbuildinfo
+test/artifacts/
+.vercel/

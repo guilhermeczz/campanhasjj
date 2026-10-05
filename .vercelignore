@@ -1,0 +1,12 @@
+.env
+.env.*
+.next
+.next-dev
+.test-build
+node_modules
+test
+scripts
+supabase
+*.tsbuildinfo
+STATUS.md
+ENTREGA.md

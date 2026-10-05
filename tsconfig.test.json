@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": ".test-build",
+    "rootDir": ".",
+    "types": ["node"],
+    "lib": ["ES2020", "DOM"]
+  },
+  "include": ["test/*.test.ts", "lib/importacao.ts", "lib/excel.ts", "lib/types.ts"]
+}
