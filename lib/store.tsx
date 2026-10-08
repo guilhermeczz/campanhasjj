@@ -27,6 +27,7 @@ interface Store extends Dados {
   salvarProduto: (item: Produto) => Promise<void>;
   excluirVendedor: (id: string) => Promise<void>;
   excluirProduto: (id: string) => Promise<void>;
+  excluirCampanha: (id: string) => Promise<void>;
   importarProdutos: (linhas: ProdutoParaImportar[]) => Promise<ResultadoImportacao>;
   adicionarVendas: (linhas: Venda[], arquivo?: string) => Promise<ResultadoImportacao>;
 }
@@ -80,13 +81,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await api("/api/produtos", { method: "DELETE", body: JSON.stringify({ id, confirmar: true }) });
     await recarregar();
   }
+  async function excluirCampanha(id: string) {
+    await api("/api/campanhas", { method: "DELETE", body: JSON.stringify({ id, confirmar: true }) });
+    await recarregar();
+  }
   return <Ctx.Provider value={{ ...dados, loading, error, recarregar, campanhaSelecionada, setCampanhaSelecionada,
     salvarCampanha: item => salvar("campanhas", item),
     salvarVendedor: item => salvar("vendedores", item),
     salvarMarca: item => salvar("marcas", item),
-    salvarProduto: item => salvar("produtos", item), adicionarVendas, excluirVendedor, excluirProduto, importarProdutos
+    salvarProduto: item => salvar("produtos", item), adicionarVendas, excluirVendedor, excluirProduto, excluirCampanha, importarProdutos
   }}>{children}</Ctx.Provider>;
 }
+
 export const useStore = () => useContext(Ctx);
 export const uid = (prefixo = "local") => prefixo + "-" + crypto.randomUUID();
 

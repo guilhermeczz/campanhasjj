@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .animate-breathing-glow {
+    animation: breathing-glow 4s ease-in-out infinite;
+  }
+  .animate-login-reveal {
+    animation: login-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes breathing-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 200, 0, 0.1); }
+  50% { box-shadow: 0 0 20px rgba(255, 200, 0, 0.25); }
+}
+
+@keyframes login-reveal {
+  0% { 
+    opacity: 0; 
+    transform: translateY(15px); 
+    filter: brightness(1.5);
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+    filter: brightness(1); 
+  }
+}
+
 :root { --jj-yellow: #ffc400; color-scheme: dark; }
 * { -webkit-tap-highlight-color: transparent; }
 body { margin: 0; background: #0a0a0a; color: #f5f5f5; font-family: var(--font-inter), Arial, sans-serif; font-size: 15px; line-height: 1.6; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }

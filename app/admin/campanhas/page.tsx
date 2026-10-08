@@ -7,13 +7,15 @@ import type { Campanha } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import { formatarData } from "@/components/CampaignPicker";
 import { dinheiro } from "@/components/CopaRanking";
+import ConfirmDelete from "@/components/ConfirmDelete";
 
 const inicial = { nome: "", descricao: "", marca_id: "", data_inicio: "2026-10-01", data_fim: "2026-12-31", premio_1: "2000", premio_2: "1500", premio_3: "500" };
 
 export default function CampanhasPage() {
-  const { campanhas, marcas, salvarCampanha } = useStore();
+  const { campanhas, marcas, salvarCampanha, excluirCampanha } = useStore();
   const [form, setForm] = useState(inicial);
   const [editando, setEditando] = useState<Campanha | null>(null);
+  const [excluindo, setExcluindo] = useState<Campanha | null>(null);
   const [busy, setBusy] = useState("");
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
@@ -48,7 +50,18 @@ export default function CampanhasPage() {
     catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível alterar a campanha."); }
     finally { setBusy(""); }
   }
+  async function confirmarExcluir() {
+    if (!excluindo) return;
+    setBusy("excluir"); setErro("");
+    try {
+      await excluirCampanha(excluindo.id);
+      setSucesso(`Campanha "${excluindo.nome}" excluída.`);
+      setExcluindo(null);
+    } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível excluir a campanha."); }
+    finally { setBusy(""); }
+  }
   return <AppShell role="admin" title="Campanhas" subtitle="Uma marca por campanha. O código da marca direciona as vendas para a classificação certa.">
+    <ConfirmDelete tipo="campanha" nome={excluindo?.nome || null} busy={busy === "excluir"} error={erro} onCancel={() => setExcluindo(null)} onConfirm={confirmarExcluir} />
     <section id="form-campanha" className="card scroll-mt-24 p-5 sm:p-6"><h2 className="font-bold">{editando ? `Editar ${editando.nome}` : "Nova campanha"}</h2><p className="mt-1 text-xs text-white/60">Copa dos Campeões · Faturamento líquido por marca</p>
       {marcas.length === 0 ? <p className="mt-4 text-sm text-white/60">Cadastre primeiro uma marca em <Link href="/admin/marcas" className="font-bold text-jj-yellow underline">Marcas</Link>.</p> : <form onSubmit={salvar} className="mt-5"><fieldset disabled={!!busy} className="grid gap-4 sm:grid-cols-2">
         <div><label htmlFor="marca-campanha" className="field-label">Marca participante</label><select id="marca-campanha" className="input" required value={form.marca_id} onChange={(e) => { const marca = marcas.find((m) => m.id === e.target.value); setForm((f) => ({ ...f, marca_id: e.target.value, nome: !editando && (!f.nome || f.nome === marcas.find((m) => m.id === f.marca_id)?.nome) ? marca?.nome || "" : f.nome })); }}><option value="">Selecione a marca</option>{marcas.filter((m) => m.ativa !== false || m.id === form.marca_id).map((m) => <option key={m.id} value={m.id}>{m.nome} · {m.codigo_externo || "sem código"}</option>)}</select></div>
@@ -60,8 +73,8 @@ export default function CampanhasPage() {
         <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className="btn-primary">{busy === "form" ? "Salvando…" : editando ? "Salvar alterações" : "Criar campanha"}</button>{editando && <button type="button" onClick={limpar} className="btn-ghost">Cancelar edição</button>}</div>
       </fieldset></form>}
     </section>
-    {erro && <p className="error-message mt-4" role="alert">{erro}</p>}{sucesso && <p className="success-message mt-4" role="status">{sucesso}</p>}
+    {erro && busy !== "excluir" && <p className="error-message mt-4" role="alert">{erro}</p>}{sucesso && <p className="success-message mt-4" role="status">{sucesso}</p>}
     <div className="mb-4 mt-7 flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">Campanhas cadastradas <span className="ml-1 text-sm font-normal text-white/55">{lista.length}</span></h2><div className="w-full sm:w-64"><label htmlFor="buscar-campanha" className="sr-only">Buscar campanha</label><input id="buscar-campanha" className="input" type="search" placeholder="Buscar campanha" value={busca} onChange={(e) => setBusca(e.target.value)} /></div></div>
-    {visiveis.length === 0 ? <div className="empty-state"><p className="text-sm text-white/55">{lista.length ? "Nenhuma campanha encontrada." : "Crie sua primeira campanha no formulário acima."}</p></div> : <div className="grid gap-3 md:grid-cols-2">{visiveis.map((c) => <article key={c.id} className="card p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-bold">{c.nome}</h3><p className="mt-1 text-xs text-white/60">Marca: {marcas.find((m) => m.id === c.marca_id)?.nome || c.marca_nome}</p></div><span className={`chip shrink-0 ${c.ativa ? "bg-jj-yellow/10 text-jj-yellow" : "bg-white/5 text-white/55"}`}>{c.ativa ? "Ativa" : "Pausada"}</span></div><p className="mt-4 text-xs text-white/65">{formatarData(c.data_inicio)} a {formatarData(c.data_fim)}</p>{c.descricao && <p className="mt-2 text-sm leading-relaxed text-white/50">{c.descricao}</p>}<p className="mt-3 text-xs leading-relaxed text-white/50">Prêmios: {dinheiro(c.premio_1)} / {dinheiro(c.premio_2)} / {dinheiro(c.premio_3)}</p><div className="mt-5 flex gap-2"><button className="btn-ghost flex-1" disabled={!!busy} onClick={() => editar(c)}>Editar</button><button className="btn-ghost flex-1" disabled={!!busy} onClick={() => alternar(c)}>{busy === c.id ? "Salvando…" : c.ativa ? "Pausar" : "Ativar"}</button></div></article>)}</div>}
+    {visiveis.length === 0 ? <div className="empty-state"><p className="text-sm text-white/55">{lista.length ? "Nenhuma campanha encontrada." : "Crie sua primeira campanha no formulário acima."}</p></div> : <div className="grid gap-3 md:grid-cols-2">{visiveis.map((c) => <article key={c.id} className="card p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-bold">{c.nome}</h3><p className="mt-1 text-xs text-white/60">Marca: {marcas.find((m) => m.id === c.marca_id)?.nome || c.marca_nome}</p></div><div className="flex shrink-0 items-center gap-2"><span className={`chip ${c.ativa ? "bg-jj-yellow/10 text-jj-yellow" : "bg-white/5 text-white/55"}`}>{c.ativa ? "Ativa" : "Pausada"}</span><button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-500" title="Excluir campanha" onClick={() => { setErro(""); setSucesso(""); setExcluindo(c); }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg></button></div></div><p className="mt-4 text-xs text-white/65">{formatarData(c.data_inicio)} a {formatarData(c.data_fim)}</p>{c.descricao && <p className="mt-2 text-sm leading-relaxed text-white/50">{c.descricao}</p>}<p className="mt-3 text-xs leading-relaxed text-white/50">Prêmios: {dinheiro(c.premio_1)} / {dinheiro(c.premio_2)} / {dinheiro(c.premio_3)}</p><div className="mt-5 flex gap-2"><button className="btn-ghost flex-1" disabled={!!busy} onClick={() => editar(c)}>Editar</button><button className="btn-ghost flex-1" disabled={!!busy} onClick={() => alternar(c)}>{busy === c.id ? "Salvando…" : c.ativa ? "Pausar" : "Ativar"}</button></div></article>)}</div>}
   </AppShell>;
 }
