@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3000 --hostname 127.0.0.1",
+    "dev:limpo": "node -e \"require('fs').rmSync('.next-dev',{recursive:true,force:true})\" && next dev --port 3000 --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

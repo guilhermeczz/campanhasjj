@@ -28,6 +28,8 @@ Este arquivo centraliza a arquitetura, serviços, testes e pendências. Deve ser
 4.  **Revisão Visual:** Inspeção UI pós-deploy.
 
 ## 5. Comandos Úteis
+- `npm run dev`: Sobe o servidor local fixo em `http://127.0.0.1:3000` (use esse endereço, não `localhost`).
+- `npm run dev:limpo`: Limpa o cache `.next-dev` e reinicia o dev (use se o dev travar ou a porta ficar presa).
 - `npm test`: Executa a suíte de testes (PGlite).
 - `npm run build`: Verifica a compilação de produção.
 - `npm run check:supabase`: Diagnóstico de funções do banco.
