@@ -29,6 +29,9 @@ function venda(overrides = {}) {
 async function ranking(marca = 'WAGO') {
   return (await boot()).rankings.filter(r => r.campanha_id === campanhas[marca]);
 }
+async function contarVendas() { return (await db.query('select count(*)::int as n from public.vendas')).rows[0].n; }
+async function resumo(marca = 'WAGO', token = adminToken) { return rpc('jj_resumo_campanha', [token, campanhas[marca]]); }
+async function evolucao(marca = 'WAGO', vendedorId = null, token = adminToken) { return rpc('jj_evolucao_campanha', [token, campanhas[marca], vendedorId]); }
 
 before(async () => {
   await db.exec('create role anon; create role authenticated; grant usage on schema public to anon, authenticated;');
@@ -73,7 +76,7 @@ test('4. faturamento em 01/01/2027 não participa', async () => {
 test('5. marca sem campanha não aparece na classificação', async () => {
   await importar([venda({ marca_id: marcas.Deca })]);
   assert.equal((await boot()).rankings.length, 0);
-  assert.equal((await boot()).vendas.length, 1, 'preservar venda para o faturamento geral');
+  assert.equal(await contarVendas(), 1, 'preservar venda para o faturamento geral');
 });
 test('6. venda integralmente cancelada não soma nem cria participante', async () => {
   await importar([venda({ status: 'cancelado', valor_bruto: 20000 })]);
@@ -165,16 +168,16 @@ test('reimportação atualiza o mesmo item sem duplicar seu faturamento', async 
   const item = venda({ item_id: 'MESMA-NOTA-ITEM-1' });
   assert.deepEqual(await importar([item]), { inseridas: 1, atualizadas: 0, total: 1 });
   assert.deepEqual(await importar([{ ...item, valor_devolucao: 300 }]), { inseridas: 0, atualizadas: 1, total: 1 });
-  assert.equal((await boot()).vendas.length, 1);
+  assert.equal(await contarVendas(), 1);
   assert.equal((await ranking())[0].faturamento_liquido_marca, 700);
 });
 test('uma linha inválida desfaz a importação inteira', async () => {
   await assert.rejects(importar([venda(), venda({ vendedor: 'nao-existe' })]), /vendedor não cadastrado/);
-  assert.equal((await boot()).vendas.length, 0);
+  assert.equal(await contarVendas(), 0);
 });
 test('IDs duplicados no mesmo arquivo são rejeitados antes de escrever', async () => {
   await assert.rejects(importar([venda({ item_id: 'DUP' }), venda({ item_id: 'DUP' })]), /item_id repetido/);
-  assert.equal((await boot()).vendas.length, 0);
+  assert.equal(await contarVendas(), 0);
 });
 test('servidor valida cliente, marca, data, valores e status', async () => {
   for (const invalid of [
@@ -182,13 +185,12 @@ test('servidor valida cliente, marca, data, valores e status', async () => {
     { valor_bruto: 'NaN' }, { valor_bruto: 1.234 }, { quantidade: 0 }, { status: 'orcamento' },
     { data_faturamento: '2026-11-01T12:00:00' }, { data_faturamento: '2026-02-30T12:00:00-03:00' }
   ]) await assert.rejects(importar([venda(invalid)]));
-  assert.equal((await boot()).vendas.length, 0);
+  assert.equal(await contarVendas(), 0);
 });
 test('marca e data determinam campanha; campo campanha do cliente é ignorado', async () => {
   await importar([venda({ campanha: 'Enerbras', campanha_id: campanhas.Enerbras })]);
-  const data = await boot();
-  assert.equal(data.vendas[0].campanha_id, campanhas.WAGO);
-  assert.equal(data.rankings[0].campanha_id, campanhas.WAGO);
+  assert.equal((await db.query('select campanha_id from public.vendas')).rows[0].campanha_id, campanhas.WAGO);
+  assert.equal((await boot()).rankings[0].campanha_id, campanhas.WAGO);
 });
 test('dados legados não faturados são excluídos mesmo contendo data', async () => {
   await importar([venda({ item_id: 'LEGADO' })]);
@@ -268,34 +270,38 @@ test('username é imutável e campos não autorizados não mudam senha/cadastro'
   await rpc('jj_salvar', [adminToken, 'vendedores', JSON.stringify({ ...joao, token: 'forjado', created_at: '1900-01-01' })]);
   assert.equal((await boot()).vendedores.find(v => v.id === joao.id).username, 'joao.silva');
 });
-test('sem truncamento REST: bootstrap devolve mais de 1000 itens', async () => {
+test('bootstrap leve: não devolve vendas e informa o total; resumo agrega mais de 1000 itens', async () => {
   await importar(Array.from({ length: 1005 }, () => venda({ valor_bruto: 1 })));
-  assert.equal((await boot()).vendas.length, 1005);
+  const data = await boot();
+  assert.deepEqual(data.vendas, []);
+  assert.equal(data.vendas_total, 1005);
   assert.equal((await ranking())[0].faturamento_liquido_marca, 1005);
+  const r = await resumo();
+  assert.equal(r.find(x => x.username === 'joao.silva').itens, 1005);
+  assert.equal((await evolucao()).at(-1).acumulado, r.find(x => x.username === 'joao.silva').pontos);
 });
 test('reaplicar migration preserva hashes, sessões e dados', async () => {
   await importar([venda()]);
   const oldHash = (await db.query("select senha from public.vendedores where username='admin'")).rows[0].senha;
   await db.exec(await readFile(migrationPath, 'utf8'));
   assert.equal((await db.query("select senha from public.vendedores where username='admin'")).rows[0].senha, oldHash);
-  assert.equal((await boot()).vendas.length, 1);
+  assert.equal(await contarVendas(), 1);
   assert.equal((await ranking())[0].faturamento_liquido_marca, 1000);
 });
 
 test('pontos usam valor líquido e regra do produto, ignorando pontos adulterados pelo navegador', async () => {
   await importar([venda({ quantidade: 99, valor_bruto: 700, valor_devolucao: 50, valor_cancelamento: 50, pontos: 999999, valor_por_ponto: 1 })]);
-  const data = await boot();
-  assert.equal(data.vendas[0].pontos, 3);
-  assert.equal(data.vendas[0].valor_por_ponto, 200);
-  assert.equal(data.rankings[0].total_pontos, 3);
-  assert.equal(data.pontuacoes[0].total_pontos, 3);
+  const row = (await db.query('select pontos::float8 as pontos, valor_por_ponto::float8 as valor_por_ponto from public.vendas')).rows[0];
+  assert.equal(row.pontos, 3);
+  assert.equal(row.valor_por_ponto, 200);
+  assert.equal((await boot()).rankings[0].total_pontos, 3);
+  assert.equal((await boot()).pontuacoes[0].total_pontos, 3);
 });
 
 test('pontos proporcionais são calculados com duas casas decimais por item', async () => {
   await importar([venda({ valor_bruto: 300 }), venda({ valor_bruto: 123.45 }), venda({ valor_bruto: 201 })]);
-  const data = await boot();
-  assert.deepEqual(data.vendas.map((v) => v.pontos).sort((a,b) => a-b), [0.62, 1.01, 1.5]);
-  assert.equal(data.pontuacoes[0].total_pontos, 3.13);
+  assert.deepEqual((await db.query('select pontos::float8 as pontos from public.vendas order by pontos')).rows.map((r) => r.pontos), [0.62, 1.01, 1.5]);
+  assert.equal((await boot()).pontuacoes[0].total_pontos, 3.13);
 });
 
 test('cada produto usa sua própria regra dentro da marca e vendedor vê só a posição', async () => {
@@ -318,19 +324,19 @@ test('pendentes e cancelados têm zero pontos, devoluções parciais reduzem a b
   const data = await boot();
   assert.equal(data.pontuacoes[0].total_pontos, 2);
   assert.equal(data.rankings[0].faturamento_liquido_marca, 400);
-  assert.ok(data.vendas.filter((v) => v.status !== 'faturado').every((v) => v.pontos === 0));
+  assert.ok((await db.query("select pontos::float8 as pontos from public.vendas where status<>'faturado'")).rows.every((r) => r.pontos === 0));
 });
 
 test('alterar valor por ponto recalcula lançamentos e reimportar não duplica pontos', async () => {
   const product = await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ nome: 'Produto editável', marca_id: marcas.WAGO, valor_por_ponto: 200 })]);
   const item = venda({ produto: product.nome, valor_bruto: 600, item_id: 'REGRA-EDITAVEL' });
   await importar([item]);
-  assert.equal((await boot()).vendas[0].pontos, 3);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 3);
   await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ ...product, valor_por_ponto: 100 })]);
-  assert.equal((await boot()).vendas[0].pontos, 6);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 6);
   await importar([item]);
   const data = await boot();
-  assert.equal(data.vendas.length, 1);
+  assert.equal(await contarVendas(), 1);
   assert.equal(data.pontuacoes[0].total_pontos, 6);
   assert.equal(data.rankings[0].faturamento_liquido_marca, 600);
 });
@@ -362,7 +368,7 @@ test('excluir vendedor remove acesso e sessões, preserva vendas e impede reativ
   assert.deepEqual(await rpc('jj_excluir_vendedor', [adminToken, user.id]), { ok: true });
   const data = await boot();
   assert.ok(!data.vendedores.some((v) => v.id === user.id));
-  assert.equal(data.vendas[0].vendedor_id, user.id);
+  assert.equal((await db.query('select vendedor_id from public.vendas')).rows[0].vendedor_id, user.id);
   await assert.rejects(boot(sessao), /Sessão expirada/);
   assert.ok((await rpc('jj_login', ['excluir.teste', '123123'])).error);
   await assert.rejects(rpc('jj_salvar', [adminToken, 'vendedores', JSON.stringify({ ...user, ativo: true })]), /excluído/);
@@ -372,36 +378,38 @@ test('excluir vendedor remove acesso e sessões, preserva vendas e impede reativ
 test('excluir produto remove do catálogo, preserva vendas e libera recadastro', async () => {
   const produto = await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ nome: 'Produto excluível', codigo_externo: 'EXC-001', marca_id: marcas.WAGO, preco_venda: 10, pontos_por_real: 2 })]);
   await importar([venda({ produto: 'EXC-001', valor_bruto: 100 })]);
-  assert.equal((await boot()).vendas[0].pontos, 200);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 200);
   await assert.rejects(rpc('jj_excluir_produto', [joaoToken, produto.id, true]), /diretoria/);
   await assert.rejects(rpc('jj_excluir_produto', [adminToken, produto.id, false]), /Confirme/);
   assert.deepEqual(await rpc('jj_excluir_produto', [adminToken, produto.id, true]), { ok: true });
   await assert.rejects(rpc('jj_excluir_produto', [adminToken, produto.id, true]), /não encontrado ou já excluído/);
   const data = await boot();
   assert.ok(!data.produtos.some((p) => p.id === produto.id));
-  assert.equal(data.vendas[0].produto_id, produto.id);
-  assert.equal(data.vendas[0].pontos, 200);
+  const mantida = (await db.query('select produto_id, pontos::float8 as pontos from public.vendas')).rows[0];
+  assert.equal(mantida.produto_id, produto.id);
+  assert.equal(mantida.pontos, 200);
   await assert.rejects(importar([venda({ produto: 'EXC-001', valor_bruto: 50 })]), /produto não cadastrado/);
   await assert.rejects(rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ ...produto, nome: 'Tentativa' })]), /excluído/);
   const novo = await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ nome: 'Produto excluível', codigo_externo: 'EXC-001', marca_id: marcas.WAGO, preco_venda: 10, pontos_por_real: 1 })]);
   assert.notEqual(novo.id, produto.id);
   await importar([venda({ produto: 'EXC-001', valor_bruto: 100, item_id: 'NF-2026-EXC-2' })]);
-  assert.equal((await boot()).vendas.find((v) => v.item_id === 'NF-2026-EXC-2').pontos, 100);
+  assert.equal((await db.query("select pontos::float8 as pontos from public.vendas where item_id='NF-2026-EXC-2'")).rows[0].pontos, 100);
 });
 
 test('pontos por real multiplicam o líquido: R$100 x 1 = 100 e x 1,5 = 150', async () => {
   const p = await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ nome: 'Multiplicador', codigo_externo: '0002', marca_id: marcas.WAGO, preco_venda: 6.99, pontos_por_real: 1.5 })]);
   await importar([venda({ produto: '0002', quantidade: 999, valor_bruto: 120, valor_devolucao: 10, valor_cancelamento: 10, pontos: 9999, pontos_por_real: 999 })]);
+  let row = (await db.query('select pontos::float8 as pontos, produto, pontos_por_real::float8 as pontos_por_real from public.vendas')).rows[0];
   let data = await boot();
-  assert.equal(data.vendas[0].pontos, 150);
-  assert.equal(data.vendas[0].produto, p.nome);
-  assert.equal(data.vendas[0].pontos_por_real, 1.5);
+  assert.equal(row.pontos, 150);
+  assert.equal(row.produto, p.nome);
+  assert.equal(row.pontos_por_real, 1.5);
   assert.equal(data.rankings[0].faturamento_liquido_marca, 100);
   await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ ...p, preco_venda: 999 })]);
-  assert.equal((await boot()).vendas[0].pontos, 150, 'preço do catálogo não divide pontos');
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 150, 'preço do catálogo não divide pontos');
   await rpc('jj_salvar', [adminToken, 'produtos', JSON.stringify({ ...p, pontos_por_real: 1 })]);
   data = await boot();
-  assert.equal(data.vendas[0].pontos, 100);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 100);
   assert.equal(data.rankings[0].faturamento_liquido_marca, 100);
   assert.equal(data.versao_regras, 3);
 });
@@ -411,15 +419,79 @@ test('importação por código preserva produto e atualiza nome e fator sem dupl
   assert.deepEqual(await rpc('jj_importar_produtos', [adminToken, JSON.stringify([linha])]), { inseridas: 1, atualizadas: 0, total: 1 });
   const p = (await boot()).produtos.find(p => p.codigo_externo === '0003');
   await importar([venda({ produto: '0003', valor_bruto: 6.99, quantidade: 500 })]);
-  assert.equal((await boot()).vendas[0].pontos, 10.49);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 10.49);
   assert.deepEqual(await rpc('jj_importar_produtos', [adminToken, JSON.stringify([{ ...linha, nome: 'Catálogo renomeado', pontos_por_real: 2 }])]), { inseridas: 0, atualizadas: 1, total: 1 });
   let data = await boot();
   assert.equal(data.produtos.find(p => p.codigo_externo === '0003').id, p.id);
-  assert.equal(data.vendas[0].pontos, 13.98);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 13.98);
   await db.exec(await readFile(migrationPath, 'utf8'));
   data = await boot();
   assert.equal(data.produtos.find(p => p.codigo_externo === '0003').pontos_por_real, 2);
-  assert.equal(data.vendas[0].pontos, 13.98);
+  assert.equal((await db.query('select pontos::float8 as pontos from public.vendas')).rows[0].pontos, 13.98);
+});
+
+test('bootstrap leve devolve vendas vazias com total para admin e zero para vendedor', async () => {
+  await importar([venda(), venda({ vendedor: 'maria.souza' })]);
+  const admin = await boot();
+  assert.deepEqual(admin.vendas, []);
+  assert.equal(admin.vendas_total, 2);
+  const joao = await boot(joaoToken);
+  assert.deepEqual(joao.vendas, []);
+  assert.equal(joao.vendas_total, 0);
+});
+
+test('resumo agrega pontos, líquido, itens e última venda, incluindo zerados', async () => {
+  await importar([venda({ valor_bruto: 1000 }), venda({ vendedor: 'maria.souza', valor_bruto: 2000 })]);
+  const r = await resumo();
+  assert.equal(r.length, 4);
+  const joao = r.find(x => x.username === 'joao.silva');
+  assert.deepEqual([joao.pontos, joao.liquido, joao.itens, joao.ultimaVenda], [5, 1000, 1, '2026-11-10']);
+  assert.equal(joao.excluido, false);
+  const maria = r.find(x => x.username === 'maria.souza');
+  assert.deepEqual([maria.pontos, maria.liquido, maria.itens], [10, 2000, 1]);
+  assert.ok(r.filter(x => x.username === 'pedro' || x.username === 'carlos').every(x => x.pontos === 0 && x.itens === 0 && x.ultimaVenda === ''));
+  assert.deepEqual(r.map(x => x.nome), [...r.map(x => x.nome)].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+});
+
+test('resumo inclui excluído com histórico e só conta vendas até 01/01/27', async () => {
+  const user = await rpc('jj_salvar', [adminToken, 'vendedores', JSON.stringify({ username: 'sair.teste', nome: 'Sair Teste', senha: '123123', role: 'vendedor' })]);
+  await importar([venda({ vendedor: 'sair.teste' }), venda({ data_faturamento: '2027-01-01T02:59:59.999999Z' }), venda({ item_id: 'NF-2026-FORA', data_faturamento: '2027-01-01T03:00:00Z' })]);
+  await rpc('jj_excluir_vendedor', [adminToken, user.id]);
+  const r = await resumo();
+  const excluido = r.find(x => x.username === 'sair.teste');
+  assert.equal(excluido.excluido, true);
+  assert.equal(excluido.itens, 1);
+  assert.equal(r.find(x => x.username === 'joao.silva').itens, 1);
+  assert.equal(await contarVendas(), 3);
+});
+
+test('resumo e evolução rejeitam vendedor e campanha inexistente', async () => {
+  await assert.rejects(resumo('WAGO', joaoToken), /diretoria/);
+  await assert.rejects(evolucao('WAGO', null, joaoToken), /diretoria/);
+  await assert.rejects(rpc('jj_resumo_campanha', [adminToken, '00000000-0000-0000-0000-000000000000']), /Campanha não encontrada/);
+  await assert.rejects(rpc('jj_evolucao_campanha', [adminToken, '00000000-0000-0000-0000-000000000000', null]), /Campanha não encontrada/);
+  await assert.rejects(rpc('jj_datas_itens', [joaoToken, JSON.stringify(['X'])]), /diretoria/);
+});
+
+test('evolucao acumula por dia a partir do início e filtra por vendedor', async () => {
+  await importar([venda({ valor_bruto: 1000 }), venda({ item_id: 'NF-2026-D2', valor_bruto: 400, data_faturamento: '2026-11-12T12:00:00-03:00' }), venda({ item_id: 'NF-2026-M', vendedor: 'maria.souza', valor_bruto: 2000 })]);
+  assert.deepEqual(await evolucao(), [
+    { data: '2026-10-01', pontos: 0, acumulado: 0 },
+    { data: '2026-11-10', pontos: 15, acumulado: 15 },
+    { data: '2026-11-12', pontos: 2, acumulado: 17 },
+  ]);
+  assert.deepEqual(await evolucao('WAGO', vendedores['maria.souza']), [
+    { data: '2026-10-01', pontos: 0, acumulado: 0 },
+    { data: '2026-11-10', pontos: 10, acumulado: 10 },
+  ]);
+});
+
+test('datas_itens devolve só os itens pedidos para a prévia de reimportação', async () => {
+  await importar([venda({ item_id: 'DATA-1' }), venda({ item_id: 'DATA-2', data_faturamento: '2026-11-12T12:00:00-03:00' })]);
+  const linhas = await rpc('jj_datas_itens', [adminToken, JSON.stringify(['DATA-2', 'INEXISTENTE'])]);
+  assert.equal(linhas.length, 1);
+  assert.equal(linhas[0].item_id, 'DATA-2');
+  assert.equal(Date.parse(linhas[0].data_faturamento), Date.parse('2026-11-12T12:00:00-03:00'));
 });
 
 test('fatores inválidos, código duplicado e conflito de identificação revertem o lote', async () => {

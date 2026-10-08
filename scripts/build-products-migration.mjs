@@ -14,7 +14,7 @@ const sql = `-- Exclusão de produtos: aplicar após o backend seguro. Pode ser 
 begin;
 alter table public.produtos add column if not exists excluido_em timestamptz;
 
-${['jj_bootstrap', 'jj_salvar', 'jj_importar_produtos', 'jj_excluir_produto'].map(definition).join('\n\n')}
+${['jj_bootstrap', 'jj_resumo_campanha', 'jj_evolucao_campanha', 'jj_datas_itens', 'jj_salvar', 'jj_importar_produtos', 'jj_excluir_produto'].map(definition).join('\n\n')}
 
 ${definition('jj_importar').replace('public.jj_importar(', 'jj_private.importar_vendas(')}
 
@@ -29,8 +29,10 @@ end $migration$;
 revoke all on function jj_private.importar_vendas(text,jsonb) from public,anon,authenticated;
 revoke all on function public.jj_bootstrap(text),public.jj_salvar(text,text,jsonb),public.jj_importar_produtos(text,jsonb),
   public.jj_excluir_produto(text,uuid,boolean),public.jj_importar(text,jsonb) from public,anon,authenticated;
+revoke all on function public.jj_resumo_campanha(text,uuid),public.jj_evolucao_campanha(text,uuid,uuid),public.jj_datas_itens(text,jsonb) from public,anon,authenticated;
 grant execute on function public.jj_bootstrap(text),public.jj_salvar(text,text,jsonb),public.jj_importar_produtos(text,jsonb),
   public.jj_excluir_produto(text,uuid,boolean),public.jj_importar(text,jsonb) to anon,authenticated;
+grant execute on function public.jj_resumo_campanha(text,uuid),public.jj_evolucao_campanha(text,uuid,uuid),public.jj_datas_itens(text,jsonb) to anon,authenticated;
 notify pgrst,'reload schema';
 commit;
 `;

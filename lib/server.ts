@@ -59,6 +59,9 @@ export async function rpc<T = unknown>(name: string, args: Record<string, unknow
       if (["jj_importar_com_auditoria", "jj_auditoria_listar", "jj_auditoria_detalhe", "jj_auditoria_desfazer"].includes(name)) {
         throw new ApiError("Falta ativar a auditoria. Execute supabase/migration_auditoria_importacoes.sql no SQL Editor do Supabase.", 503);
       }
+      if (["jj_resumo_campanha", "jj_evolucao_campanha", "jj_datas_itens"].includes(name)) {
+        throw new ApiError("Falta ativar o painel otimizado. Execute supabase/migration_bootstrap_leve.sql no SQL Editor do Supabase.", 503);
+      }
       throw new ApiError("Falta atualizar o banco. Execute supabase/migration_backend_seguro.sql no SQL Editor do Supabase.", 503);
     }
     if (error.code === "P0001" || error.code === "28000" || error.code === "42501") {

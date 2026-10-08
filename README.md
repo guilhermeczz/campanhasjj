@@ -25,7 +25,7 @@ Acesse `http://localhost:3000`. Configure `.env.local` a partir de `.env.example
 
 ## Atualizar o banco existente
 
-Se o backend seguro atual já foi aplicado, execute **somente** `supabase/migration_auditoria_importacoes.sql` no SQL Editor do mesmo projeto Supabase para ativar auditoria e desfazer. Se o banco ainda não tem a exclusão de produtos (`jj_excluir_produto` ausente no diagnóstico), execute também `supabase/migration_exclusao_produtos.sql` depois do backend e antes ou depois da auditoria — ela preserva vendas, auditoria e a RPC de importação. Se ainda não foi aplicado, execute primeiro `supabase/migration_backend_seguro.sql`: ele preserva cadastros e vendas, converte senhas em hashes e fecha o acesso direto às tabelas. A auditoria sempre deve ser aplicada depois do backend, inclusive ao reaplicar uma atualização dele.
+Se o backend seguro atual já foi aplicado, execute **somente** `supabase/migration_bootstrap_leve.sql` no SQL Editor do mesmo projeto Supabase para ativar o painel otimizado (bootstrap sem vendas + resumo/evolução por campanha). Ela deve ser aplicada **depois** das demais. Se o banco ainda não tem a auditoria (`jj_auditoria_listar` ausente no diagnóstico), execute antes `supabase/migration_auditoria_importacoes.sql`; se não tem a exclusão de produtos (`jj_excluir_produto` ausente), execute também `supabase/migration_exclusao_produtos.sql`. Se o backend ainda não foi aplicado, execute primeiro `supabase/migration_backend_seguro.sql`: ele preserva cadastros e vendas, converte senhas em hashes e fecha o acesso direto às tabelas.
 
 Não reaplique os scripts antigos depois da migração de segurança: eles pertencem à configuração inicial e podem restaurar políticas antigas. Para um banco novo, a ordem é:
 
@@ -34,6 +34,7 @@ Não reaplique os scripts antigos depois da migração de segurança: eles perte
 3. `supabase/migration_campanhas_por_marca.sql`
 4. `supabase/migration_backend_seguro.sql`
 5. `supabase/migration_auditoria_importacoes.sql`
+6. `supabase/migration_bootstrap_leve.sql`
 
 Publique a versão atual do app junto dessa atualização do banco: versões antigas acessavam as tabelas diretamente. Os cadastros iniciais dos scripts são de demonstração; revise os acessos antes do uso real.
 

@@ -9,7 +9,6 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 const require = createRequire(import.meta.url);
 const { lerProdutos } = require('../.test-build/lib/produtosExcel.js');
 const { calcularPontosProduto } = require('../.test-build/lib/pontuacao.js');
-const { acompanharCampanha, evolucaoCampanha } = require('../.test-build/lib/acompanhamento.js');
 if (!process.argv[2]) throw new Error('Informe o caminho do arquivo .xlsx.');
 const file = new File([await readFile(process.argv[2])], basename(process.argv[2]));
 const db = new PGlite({ extensions: { pgcrypto } });
@@ -35,17 +34,20 @@ try {
   const vendas = rows.map((r,i) => ({ item_id: `TESTE-${i}`, vendedor: 'joao.silva', produto: r.codigo_externo || r.nome, quantidade: 100, marca_id: marca.id, data_faturamento: '2026-10-04T12:00:00-03:00', valor_bruto: 120, valor_devolucao: 10, valor_cancelamento: 10, cliente_id: 'TESTE', status: 'faturado' }));
   await rpc('jj_importar', [token, JSON.stringify(vendas)]);
   const boot = await rpc('jj_bootstrap', [token]);
+  assert.deepEqual(boot.vendas, []);
+  assert.equal(boot.vendas_total, rows.length);
   for (let i = 0; i < rows.length; i++) {
-    const venda = boot.vendas.find(v => v.item_id === `TESTE-${i}`);
-    assert.equal(venda.pontos, calcularPontosProduto(100, rows[i]));
-    assert.equal(venda.pontos, 100 * rows[i].pontos_por_real);
+    const found = (await db.query('select pontos from public.vendas where item_id=$1', [`TESTE-${i}`])).rows;
+    assert.equal(found.length, 1);
+    assert.equal(found[0].pontos, calcularPontosProduto(100, rows[i]));
+    assert.equal(found[0].pontos, 100 * rows[i].pontos_por_real);
   }
-  const equipe = acompanharCampanha(campanha, boot.vendas, boot.vendedores);
+  const resumo = await rpc('jj_resumo_campanha', [token, campanha.id]);
   const joao = boot.vendedores.find(v => v.username === 'joao.silva');
   const totalSQL = boot.pontuacoes.find(p => p.campanha_id === campanha.id && p.vendedor_id === joao.id).total_pontos;
-  assert.equal(equipe.find(v => v.id === joao.id).pontos, totalSQL);
-  assert.equal(evolucaoCampanha(campanha, boot.vendas, joao.id).at(-1).acumulado, totalSQL);
-  assert.ok(equipe.filter(v => v.id !== joao.id).every(v => v.pontos === 0));
+  assert.equal(resumo.find(v => v.id === joao.id).pontos, totalSQL);
+  assert.equal((await rpc('jj_evolucao_campanha', [token, campanha.id, joao.id])).at(-1).acumulado, totalSQL);
+  assert.ok(resumo.filter(v => v.id !== joao.id).every(v => v.pontos === 0));
   await rpc('jj_importar', [token, JSON.stringify(vendas)]);
   const logs = await rpc('jj_auditoria_listar', [token]);
   assert.equal(logs.total, 2);
@@ -53,7 +55,8 @@ try {
   const ultimo = logs.registros.find(r => r.pode_desfazer);
   assert.equal(ultimo.total_pontos, totalSQL);
   await rpc('jj_auditoria_desfazer', [token, ultimo.id, true]);
-  assert.deepEqual((await rpc('jj_bootstrap', [token])).vendas, boot.vendas);
+  assert.equal((await rpc('jj_bootstrap', [token])).vendas_total, rows.length);
+  assert.deepEqual(await rpc('jj_resumo_campanha', [token, campanha.id]), resumo);
   console.log(JSON.stringify({ arquivo: file.name, produtos: rows.length, erros: 0, cadastro: 'aprovado', reimportacao: 'sem duplicatas', calculos_validados: vendas.length, painel: 'total e evolução conferem com PostgreSQL; vendedores sem vendas zerados', auditoria: { registros: logs.total, previas_unicas: logs.previas_unicas, bytes_previas: logs.bytes_previas, bytes_reserva_desfazer: logs.bytes_restauracao, restauracao: 'valores preservados' }, fatores: [...new Set(rows.map(r => r.pontos_por_real))], banco: 'temporário em memória; Supabase real não alterado' }, null, 2));
 } catch (error) {
   console.error(error.message);

@@ -13,7 +13,7 @@
 
 ## Supabase
 
-A última `migration_backend_seguro.sql` já foi aplicada, conforme confirmado em 05/10/2026. **Para ativar a nova auditoria e o desfazer, execute agora o conteúdo completo de `supabase/migration_auditoria_importacoes.sql` no SQL Editor do mesmo Supabase.** Se o diagnóstico (`npm run check:supabase`) indicar `jj_excluir_produto` pendente, execute também `supabase/migration_exclusao_produtos.sql` — ela preserva vendas, auditoria e a importação, e pode ser aplicada antes ou depois da auditoria. O diagnóstico confirmou que essas novas funções ainda não estão disponíveis. Não é necessário reaplicar o backend nem os scripts iniciais.
+A última `migration_backend_seguro.sql` já foi aplicada, conforme confirmado em 05/10/2026. **Para ativar o painel otimizado (novo carregamento leve do painel da diretoria), execute agora o conteúdo completo de `supabase/migration_bootstrap_leve.sql` no SQL Editor do mesmo Supabase, depois das demais migrações.** Ela preserva vendas, cadastros e auditoria. Se o diagnóstico (`npm run check:supabase`) indicar funções pendentes, execute antes `supabase/migration_auditoria_importacoes.sql` (auditoria/desfazer) e `supabase/migration_exclusao_produtos.sql` (`jj_excluir_produto`) — ambas preservam vendas, auditoria e a importação. Não é necessário reaplicar o backend nem os scripts iniciais. Sem essa migração, o painel mostra o aviso "Falta ativar o painel otimizado".
 
 A migração preserva as vendas e os cadastros. O histórico começa nas próximas importações concluídas; arquivos antigos não são reconstruídos. O app atualizado depende dessa migração para importar vendas.
 

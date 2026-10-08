@@ -7,7 +7,7 @@ import {
 
 export { EXCEL_HEADERS_COPA, type LinhaCopaValidada, type CadastrosImportacao } from "./importacao";
 
-export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao): Promise<LinhaCopaValidada[]> {
+export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao, buscarDatas?: (ids: string[]) => Promise<Record<string, string>>): Promise<LinhaCopaValidada[]> {
   if (!/\.xlsx$/i.test(file.name)) throw new Error("Escolha um arquivo Excel .xlsx. Use o modelo desta página.");
   if (file.size > LIMITE_ARQUIVO) throw new Error("O arquivo ultrapassa 5 MB. Divida a planilha e envie novamente.");
   let wb: XLSX.WorkBook;
@@ -21,6 +21,34 @@ export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao
   const linhas = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", raw: true, blankrows: true });
   const ids = new Set(["item_id", "vendedor", "marca_id", "cliente_id", "produto"]);
   const header = linhas[0]?.map((valor) => chaveDoCabecalho(String(valor))) || [];
+  let vigentes = cadastros;
+  // As datas de reimportação vêm do banco só para os itens deste arquivo, sem baixar todas as vendas.
+  if (buscarDatas) {
+    const coluna = header.indexOf("item_id");
+    if (coluna >= 0) {
+      const candidatos = new Set<string>();
+      for (let r = 1; r < linhas.length && candidatos.size < LIMITE_LINHAS; r++) {
+        const bruto = linhas[r][coluna];
+        const texto = String(bruto ?? "").trim();
+        if (texto) candidatos.add(texto);
+        if (typeof bruto === "number") {
+          const cell = ws[XLSX.utils.encode_cell({ r, c: coluna })];
+          const formatado = String(cell?.w ?? "").trim();
+          if (formatado) candidatos.add(formatado);
+        }
+      }
+      if (candidatos.size) {
+        let mapa: Record<string, string> = {};
+        try { mapa = await buscarDatas([...candidatos].slice(0, LIMITE_LINHAS)); }
+        catch { throw new Error("Não foi possível consultar as vendas já cadastradas. Verifique sua conexão e tente novamente."); }
+        const datas = Object.entries(mapa).filter(([item_id, data]) => item_id && data).map(([item_id, data_faturamento]) => ({ item_id, data_faturamento }));
+        if (datas.length) {
+          const vindas = new Set(datas.map((d) => d.item_id));
+          vigentes = { ...cadastros, vendas: [...(cadastros.vendas || []).filter((v) => v.item_id && !vindas.has(v.item_id)), ...datas] };
+        }
+      }
+    }
+  }
   // Preserve identifiers such as 000123 while leaving numeric/date cells raw.
   for (let r = 1; r < linhas.length; r++) {
     for (let c = 0; c < header.length; c++) {
@@ -35,7 +63,7 @@ export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao
       }
     }
   }
-  return validarLinhasCopa(linhas, cadastros);
+  return validarLinhasCopa(linhas, vigentes);
 }
 
 export function criarModeloCopa(_cadastros?: CadastrosImportacao): XLSX.WorkBook {

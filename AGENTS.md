@@ -10,21 +10,25 @@ Este arquivo centraliza a arquitetura, serviços, testes e pendências. Deve ser
 
 ## 2. Serviços Principais (RPCs)
 - `supabase/migration_performance_indices.sql`: Índices para performance de ranking e listagem de vendas.
-- `jj_bootstrap`: Inicialização de sessão e dados básicos.
+- `supabase/migration_bootstrap_leve.sql`: Bootstrap sem vendas + RPCs agregadas (aplicar DEPOIS das demais).
+- `jj_bootstrap`: Leve — devolve `vendas: []` sempre + `vendas_total` (admin). Limite de campanha: `data_faturamento < 01/01/2027` (31/12/2026 inclusive, fuso SP).
+- `jj_resumo_campanha`: Agregado por vendedor de UMA campanha (pontos, líquido, itens, última venda; inclui zerados e excluídos com histórico).
+- `jj_evolucao_campanha`: Evolução diária acumulada de UMA campanha, opcional por vendedor.
+- `jj_datas_itens`: Datas dos itens do arquivo para a prévia de reimportação (sem baixar vendas).
 - `jj_importar_com_auditoria`: Importação de vendas com log.
 - `jj_calcular_ranking`: Motor de cálculo do ranking (SQL).
 - `jj_auditoria_desfazer`: Reversão transacional da última importação.
 - `jj_excluir_produto`/`jj_excluir_vendedor`: Gerenciamento de cadastros com preservação de histórico.
 
 ## 3. Testes
-- **Status:** 91 testes aprovados (`npm test`).
-- **Cobertura:** Cobrem importação, regras de negócio, cálculo de pontos, exclusão, privacidade e cenários de segurança.
+- **Status:** 97 testes aprovados (`npm test`).
+- **Cobertura:** Cobrem importação, regras de negócio, cálculo de pontos, exclusão, privacidade, bootstrap leve, resumo/evolução/datas e cenários de segurança.
 - **Ferramentas:** PGlite (memória) para testes rápidos sem afetar o Supabase real.
 
 ## 4. Pendências e Preocupações (Backlog)
-1.  **Segurança/Performance:** Auditoria de índices nas tabelas `vendas` e `produtos` para garantir performance conforme a base cresce.
-2.  **Funcionalidade:** Ranking por pontos implementado e disponível para consulta na diretoria.
-3.  **Publicação:** Validação final e deploy na Vercel (a cargo do usuário).
+1.  **Supabase prod:** Rodar `migration_bootstrap_leve.sql` (único passo pendente no banco) + push para a Vercel rebuildar.
+2.  **Escala:** Teste de volume com massa sintética (10k/50k/100k vendas) — próximo passo combinado.
+3.  **Publicação:** Deploy na Vercel (a cargo do usuário).
 4.  **Revisão Visual:** Inspeção UI pós-deploy.
 
 ## 5. Comandos Úteis

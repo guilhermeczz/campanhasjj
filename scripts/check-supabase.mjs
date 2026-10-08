@@ -12,6 +12,9 @@ for (const table of ['vendedores', 'campanhas', 'marcas', 'produtos', 'vendas', 
 }
 for (const [nome, args] of [
   ['jj_bootstrap', {}],
+  ['jj_resumo_campanha', { p_campanha_id: '00000000-0000-0000-0000-000000000000' }],
+  ['jj_evolucao_campanha', { p_campanha_id: '00000000-0000-0000-0000-000000000000' }],
+  ['jj_datas_itens', { p_ids: [] }],
   ['jj_importar_produtos', { p_linhas: [] }],
   ['jj_importar_com_auditoria', { p_linhas: [], p_arquivo: 'diagnostico.xlsx' }],
   ['jj_auditoria_listar', {}],

@@ -12,7 +12,7 @@ const moeda = (valor: number) => valor.toLocaleString("pt-BR", { style: "currenc
 const TAMANHO_PAGINA = 50;
 
 export default function UploadPage() {
-  const { campanhas, marcas, vendedores, produtos, vendas, adicionarVendas, loading, error } = useStore();
+  const { campanhas, marcas, vendedores, produtos, vendas, adicionarVendas, buscarDatasItens, loading, error } = useStore();
   const [linhas, setLinhas] = useState<LinhaCopaValidada[]>([]);
   const [arquivo, setArquivo] = useState("");
   const [lendo, setLendo] = useState(false);
@@ -60,7 +60,7 @@ export default function UploadPage() {
     setSomenteErros(false);
     setLendo(true);
     try {
-      const resultado = await lerPlanilhaCopa(file, cadastros);
+      const resultado = await lerPlanilhaCopa(file, cadastros, buscarDatasItens);
       if (leitura === leituraAtual.current) { setLinhas(resultado); setSomenteErros(resultado.some((linha) => linha.erro)); }
     } catch (e) {
       if (leitura === leituraAtual.current) setErro(e instanceof Error ? e.message : "Não foi possível ler o arquivo. Use um Excel .xlsx válido.");
