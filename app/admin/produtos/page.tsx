@@ -18,6 +18,8 @@ export default function ProdutosPage() {
   const [form, setForm] = useState(inicial);
   const [editando, setEditando] = useState<Produto | null>(null);
   const [busca, setBusca] = useState("");
+  const [marcaFiltro, setMarcaFiltro] = useState("");
+  const [expandidas, setExpandidas] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
@@ -29,7 +31,12 @@ export default function ProdutosPage() {
   const [linhas, setLinhas] = useState<ProdutoImportado[]>([]);
   const [pagina, setPagina] = useState(1);
   const arquivoRef = useRef<HTMLInputElement>(null);
-  const lista = produtos.filter((p) => `${p.nome} ${p.codigo_externo || ""} ${marcas.find((m) => m.id === p.marca_id)?.nome || ""}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")));
+  const lista = produtos.filter((p) => `${p.nome} ${p.codigo_externo || ""} ${marcas.find((m) => m.id === p.marca_id)?.nome || ""}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR"))).filter((p) => !marcaFiltro || p.marca_id === marcaFiltro);
+  const grupos = marcas.filter((m) => !marcaFiltro || m.id === marcaFiltro).map((m) => ({ marca: m, itens: lista.filter((p) => p.marca_id === m.id) })).filter((g) => g.itens.length > 0);
+  const semMarca = lista.filter((p) => !marcas.some((m) => m.id === p.marca_id));
+  const todosGrupos = [...grupos.map((g) => ({ id: g.marca.id, nome: g.marca.nome, itens: g.itens })), ...(semMarca.length && !marcaFiltro ? [{ id: "sem-marca", nome: "Sem marca", itens: semMarca }] : [])];
+  const buscando = busca.trim().length > 0;
+  function alternarGrupo(id: string) { setExpandidas((atual) => atual.includes(id) ? atual.filter((g) => g !== id) : [...atual, id]); }
   const erros = linhas.filter((linha) => linha.erro);
   const revisao = erros.length ? erros : linhas;
   const paginas = Math.max(1, Math.ceil(revisao.length / 30));
@@ -132,8 +139,20 @@ export default function ProdutosPage() {
     </section>
 
     {erro && <p role="alert" className="error-message mt-4">{erro}</p>}{sucesso && <p role="status" className="success-message mt-4">{sucesso}</p>}
-    <div className="mb-4 mt-7 flex flex-wrap items-center justify-between gap-4"><h2 className="text-lg font-semibold">Produtos cadastrados <span className="text-sm font-normal text-white/60">({produtos.length})</span></h2><div className="w-full sm:w-72"><label htmlFor="buscar-produtos" className="sr-only">Buscar produto, código ou marca</label><input id="buscar-produtos" type="search" className="input" placeholder="Buscar produto, código ou marca" value={busca} onChange={(e) => setBusca(e.target.value)} /></div></div>
-    {!lista.length ? <p className="empty-state text-sm text-white/65">{produtos.length ? "Nenhum produto encontrado." : "Cadastre um produto ou importe sua planilha para começar."}</p> : <div className="space-y-3">{lista.map((p) => <article key={p.id} className="card flex flex-wrap items-center justify-between gap-4 p-5"><div className="min-w-0"><h3 className="break-words font-semibold">{p.nome}</h3><p className="mt-1 text-xs text-white/60">{marcas.find((m) => m.id === p.marca_id)?.nome || p.marca_nome}{p.codigo_externo ? ` · Código ${p.codigo_externo}` : ""}{p.ativo === false ? " · Inativo" : ""}</p><p className="mt-2 font-semibold text-jj-yellow">{descreverRegra(p)}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><button type="button" className="btn-ghost" disabled={!!busy} onClick={() => editar(p)}>Editar produto e pontos</button><button type="button" className="btn-ghost" disabled={!!busy} onClick={() => void alternar(p)}>{busy === p.id ? "Salvando…" : p.ativo === false ? "Ativar" : "Desativar"}</button><button type="button" className="btn-danger-outline" disabled={!!busy} onClick={() => { setExcluindo(p); setErroExclusao(""); }}>Excluir produto</button></div></article>)}</div>}
+    <div className="mb-4 mt-7 flex flex-wrap items-end justify-between gap-4"><h2 className="text-lg font-semibold">Produtos cadastrados <span className="text-sm font-normal text-white/60">({lista.length}{marcaFiltro || busca ? ` de ${produtos.length}` : ""})</span></h2><div className="flex w-full flex-wrap gap-3 sm:w-auto"><div className="w-full sm:w-52"><label htmlFor="filtro-marca" className="field-label">Filtrar por marca</label><select id="filtro-marca" className="input" value={marcaFiltro} onChange={(e) => { setMarcaFiltro(e.target.value); setExpandidas([]); }}><option value="">Todas as marcas</option>{marcas.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}</select></div><div className="w-full sm:w-72"><label htmlFor="buscar-produtos" className="field-label">Buscar produto ou código</label><input id="buscar-produtos" type="search" className="input" placeholder="Buscar produto, código ou marca" value={busca} onChange={(e) => setBusca(e.target.value)} /></div></div></div>
+    {!todosGrupos.length ? <p className="empty-state text-sm text-white/65">{produtos.length ? "Nenhum produto encontrado." : "Cadastre um produto ou importe sua planilha para começar."}</p> : <>
+      <div className="mb-3 flex flex-wrap gap-2"><button type="button" className="btn-ghost" onClick={() => setExpandidas(todosGrupos.map((g) => g.id))}>Expandir todas</button><button type="button" className="btn-ghost" onClick={() => setExpandidas([])}>Recolher todas</button></div>
+      <div className="space-y-3">{todosGrupos.map((grupo) => {
+        const aberto = buscando || expandidas.includes(grupo.id);
+        return <section key={grupo.id} className="card overflow-hidden">
+          <button type="button" onClick={() => alternarGrupo(grupo.id)} aria-expanded={aberto} className="flex w-full items-center justify-between gap-4 p-5 text-left">
+            <span><span className="block font-semibold">{grupo.nome}</span><span className="mt-1 block text-xs text-white/60">{grupo.itens.length} {grupo.itens.length === 1 ? "produto" : "produtos"}{buscando ? " encontrados" : ""}</span></span>
+            <span aria-hidden="true" className={`shrink-0 text-jj-yellow transition-transform ${aberto ? "rotate-180" : ""}`}>▼</span>
+          </button>
+          {aberto && <div className="space-y-3 border-t border-white/10 p-4">{grupo.itens.map((p) => <article key={p.id} className="card flex flex-wrap items-center justify-between gap-4 p-5"><div className="min-w-0"><h3 className="break-words font-semibold">{p.nome}</h3><p className="mt-1 text-xs text-white/60">{marcas.find((m) => m.id === p.marca_id)?.nome || p.marca_nome}{p.codigo_externo ? ` · Código ${p.codigo_externo}` : ""}{p.ativo === false ? " · Inativo" : ""}</p><p className="mt-2 font-semibold text-jj-yellow">{descreverRegra(p)}</p></div><div className="flex w-full flex-wrap gap-2 sm:w-auto"><button type="button" className="btn-ghost" disabled={!!busy} onClick={() => editar(p)}>Editar produto e pontos</button><button type="button" className="btn-ghost" disabled={!!busy} onClick={() => void alternar(p)}>{busy === p.id ? "Salvando…" : p.ativo === false ? "Ativar" : "Desativar"}</button><button type="button" className="btn-danger-outline" disabled={!!busy} onClick={() => { setExcluindo(p); setErroExclusao(""); }}>Excluir produto</button></div></article>)}</div>}
+        </section>;
+      })}</div>
+    </>}
     <ConfirmDelete tipo="produto" nome={excluindo?.nome || null} busy={busy === "exclusao"} error={erroExclusao} onCancel={() => setExcluindo(null)} onConfirm={() => void confirmarExclusao()} />
   </AppShell>;
 }
