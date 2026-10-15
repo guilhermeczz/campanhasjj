@@ -3,7 +3,7 @@ export const CLIENTE_PADRAO = "NAO-INFORMADO";
 /** Colunas do modelo baixado: 6 obrigatórias + data (opcional, mas recomendada). */
 export const MODELO_VENDAS = ["item_id", "vendedor", "produto", "quantidade", "marca_id", "data_faturamento", "valor_bruto"] as const;
 export const CAMPOS_PLANILHA = [
-  { chave: "item_id", titulo: "Código do item", exemplo: "NF-12345-ITEM-1", ajuda: "Identifique cada produto da nota com um código único. Ex.: nota 12345, primeiro produto = NF-12345-ITEM-1. Use sempre o mesmo código para corrigir essa venda.", opcional: false },
+  { chave: "item_id", titulo: "Código do item", exemplo: "NF-12345-ITEM-1", ajuda: "Identifique cada linha da planilha com um código único. Não é o código do produto: para vender o mesmo produto 2 vezes (mesmo vendedor ou vendedores diferentes), use códigos diferentes, como NF-12345-ITEM-1 e NF-12345-ITEM-2. O código do produto vai na coluna Produto. Use sempre o mesmo código para corrigir essa venda.", opcional: false },
   { chave: "vendedor", titulo: "Vendedor", exemplo: "joao.silva", ajuda: "Use o login, como joao.silva, em vez do nome completo. Consulte os vendedores nesta página.", opcional: false },
   { chave: "produto", titulo: "Produto", exemplo: "Conector 221", ajuda: "Informe o código ou nome de um produto cadastrado na marca. Pontos = valor líquido vendido × pontos por real do produto.", opcional: false },
   { chave: "quantidade", titulo: "Quantidade", exemplo: "10", ajuda: "Informe a quantidade deste item. Deve ser maior que zero.", opcional: false },

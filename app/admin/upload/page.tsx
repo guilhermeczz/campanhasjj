@@ -165,7 +165,7 @@ export default function UploadPage() {
           {comErro.length > 10 && <p className="mt-3 text-xs text-white/60">As demais linhas com erro estão na tabela abaixo.</p>}
           <div className="mt-4 flex flex-wrap gap-3"><button type="button" className="btn-primary" disabled={ocupado} onClick={() => inputRef.current?.click()}>Selecionar planilha corrigida</button><a href="#ajuda-importacao" className="btn-ghost">Consultar ajuda</a></div>
         </div>}
-        <p className="mt-3 text-sm text-white/60">O resumo abaixo mostra este arquivo. Itens com o mesmo Código do item substituem o registro anterior.</p>
+        <p className="mt-3 text-sm text-white/60">O resumo abaixo mostra este arquivo. Cada linha precisa de um Código do item único — para vender o mesmo produto 2 vezes, use códigos diferentes (ex.: NF-123-ITEM-1 e NF-123-ITEM-2). Reenviar um código já importado atualiza aquela venda.</p>
         {resumo.length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{resumo.map(([destino, grupo]) => <div key={destino} className="rounded-xl border border-white/10 bg-black/20 p-4">
           <p className="text-sm font-semibold text-white">{destino}</p>
           <p className="mt-1 text-xs text-white/50">{grupo.linhas} itens · {grupo.quantidade.toLocaleString("pt-BR")} unidades</p>

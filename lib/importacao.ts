@@ -156,8 +156,8 @@ export function validarLinhasCopa(tabela: unknown[][], cadastros: CadastrosImpor
     const data_faturamento = dataVazia ? dataAnterior || parseDataFaturamento(dataImportacao) : parseDataFaturamento(dataInformada);
     const statusInformado = textoCelula(campo("status")).toLowerCase() || "faturado";
     const status: LinhaCopaValidada["status"] = ["faturado", "cancelado", "pendente"].includes(statusInformado) ? statusInformado as LinhaCopaValidada["status"] : "";
-    if (!item_id) erros.push("Código do item: preencha um código único, como NF-123-ITEM-1");
-    else if ((repetidos.get(item_id)?.length || 0) > 1) erros.push(`Código do item repetido nas linhas ${repetidos.get(item_id)!.join(", ")}: mantenha apenas uma linha por item`);
+    if (!item_id) erros.push("Código do item: preencha um código único por linha, como NF-123-ITEM-1 e NF-123-ITEM-2");
+    else if ((repetidos.get(item_id)?.length || 0) > 1) erros.push(`Código do item ${item_id} repetido nas linhas ${repetidos.get(item_id)!.join(", ")}: cada linha precisa de um código único, mesmo vendendo o mesmo produto para vendedores diferentes. Ex.: use ${item_id}-1 e ${item_id}-2. O código do produto vai na coluna Produto`);
     if (!vendedor) erros.push("Vendedor: não encontrado ou inativo; consulte o login na ajuda desta página");
     if (!produto) erros.push("Produto: preencha o nome do produto vendido");
     else if (marca && !produtoCadastrado) erros.push(produtos.length > 1 ? "Produto: identificação ambígua nesta marca; corrija o cadastro em Produtos" : "Produto: não cadastrado nesta marca; cadastre em Produtos ou consulte o código ou nome na ajuda");
