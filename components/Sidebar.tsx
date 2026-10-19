@@ -7,12 +7,11 @@ import { useAuth } from "@/lib/auth";
 
 export interface MenuItem { href: string; label: string; icon: string }
 export const MENU_ADMIN: MenuItem[] = [
-  { href: "/admin", label: "Pontos e resultados", icon: "ranking" },
+  { href: "/admin", label: "Ranking e resultados", icon: "ranking" },
   { href: "/admin/upload", label: "Importar vendas", icon: "upload" },
   { href: "/admin/auditoria", label: "Auditoria", icon: "sales" },
   { href: "/admin/campanhas", label: "Campanhas", icon: "campaign" },
-  { href: "/admin/produtos", label: "Produtos", icon: "brand" },
-  { href: "/admin/marcas", label: "Marcas", icon: "brand" },
+  { href: "/admin/categorias", label: "Categorias", icon: "brand" },
   { href: "/admin/vendedores", label: "Vendedores", icon: "users" }
 ];
 export const MENU_VENDEDOR: MenuItem[] = [

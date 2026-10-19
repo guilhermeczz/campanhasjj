@@ -1,13 +1,10 @@
 import * as XLSX from "xlsx";
 import { CAMPOS_PLANILHA, MODELO_VENDAS, chaveDoCabecalho } from "./importacaoGuia";
-import {
-  LIMITE_ARQUIVO, LIMITE_LINHAS, validarLinhasCopa,
-  type CadastrosImportacao, type LinhaCopaValidada
-} from "./importacao";
+import { LIMITE_ARQUIVO, LIMITE_LINHAS, validarLinhas, type CadastrosImportacao, type LinhaValidada } from "./importacao";
 
-export { EXCEL_HEADERS_COPA, type LinhaCopaValidada, type CadastrosImportacao } from "./importacao";
+export type { LinhaValidada, CadastrosImportacao } from "./importacao";
 
-export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao, buscarDatas?: (ids: string[]) => Promise<Record<string, string>>): Promise<LinhaCopaValidada[]> {
+export async function lerPlanilha(file: File, cadastros: CadastrosImportacao): Promise<LinhaValidada[]> {
   if (!/\.xlsx$/i.test(file.name)) throw new Error("Escolha um arquivo Excel .xlsx. Use o modelo desta página.");
   if (file.size > LIMITE_ARQUIVO) throw new Error("O arquivo ultrapassa 5 MB. Divida a planilha e envie novamente.");
   let wb: XLSX.WorkBook;
@@ -19,62 +16,26 @@ export async function lerPlanilhaCopa(file: File, cadastros: CadastrosImportacao
   const range = ws["!fullref"] || ws["!ref"];
   if (range && XLSX.utils.decode_range(range).e.r > LIMITE_LINHAS) throw new Error(`O limite é ${LIMITE_LINHAS.toLocaleString("pt-BR")} linhas por arquivo. Divida a planilha.`);
   const linhas = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", raw: true, blankrows: true });
-  const ids = new Set(["item_id", "vendedor", "marca_id", "cliente_id", "produto"]);
   const header = linhas[0]?.map((valor) => chaveDoCabecalho(String(valor))) || [];
-  let vigentes = cadastros;
-  // As datas de reimportação vêm do banco só para os itens deste arquivo, sem baixar todas as vendas.
-  if (buscarDatas) {
-    const coluna = header.indexOf("item_id");
-    if (coluna >= 0) {
-      const candidatos = new Set<string>();
-      for (let r = 1; r < linhas.length && candidatos.size < LIMITE_LINHAS; r++) {
-        const bruto = linhas[r][coluna];
-        const texto = String(bruto ?? "").trim();
-        if (texto) candidatos.add(texto);
-        if (typeof bruto === "number") {
-          const cell = ws[XLSX.utils.encode_cell({ r, c: coluna })];
-          const formatado = String(cell?.w ?? "").trim();
-          if (formatado) candidatos.add(formatado);
-        }
-      }
-      if (candidatos.size) {
-        let mapa: Record<string, string> = {};
-        try { mapa = await buscarDatas([...candidatos].slice(0, LIMITE_LINHAS)); }
-        catch { throw new Error("Não foi possível consultar as vendas já cadastradas. Verifique sua conexão e tente novamente."); }
-        const datas = Object.entries(mapa).filter(([item_id, data]) => item_id && data).map(([item_id, data_faturamento]) => ({ item_id, data_faturamento }));
-        if (datas.length) {
-          const vindas = new Set(datas.map((d) => d.item_id));
-          vigentes = { ...cadastros, vendas: [...(cadastros.vendas || []).filter((v) => v.item_id && !vindas.has(v.item_id)), ...datas] };
-        }
-      }
-    }
-  }
-  // Preserve identifiers such as 000123 while leaving numeric/date cells raw.
   for (let r = 1; r < linhas.length; r++) {
     for (let c = 0; c < header.length; c++) {
       const cell = ws[XLSX.utils.encode_cell({ r, c })];
       const titulo = CAMPOS_PLANILHA.find((campo) => campo.chave === header[c])?.titulo || header[c];
       if (cell?.f || cell?.t === "e") throw new Error(`Linha ${r + 1}, ${titulo}: fórmulas e erros de Excel não são aceitos. Copie a célula e use Colar especial → Valores no Excel.`);
-      if (ids.has(header[c]) && cell?.t === "n") {
-        if (!Number.isSafeInteger(cell.v)) throw new Error(`Linha ${r + 1}, ${titulo}: código numérico inválido. Formate códigos como Texto para preservar todos os dígitos.`);
-        const texto = cell.w || XLSX.utils.format_cell(cell);
-        if (!/^\d+$/.test(texto)) throw new Error(`Linha ${r + 1}, ${titulo}: formate o código como Texto, sem notação científica ou pontuação numérica.`);
-        linhas[r][c] = texto;
-      }
     }
   }
-  return validarLinhasCopa(linhas, vigentes);
+  return validarLinhas(linhas, cadastros);
 }
 
-export function criarModeloCopa(_cadastros?: CadastrosImportacao): XLSX.WorkBook {
+export function criarModelo(): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const campos = MODELO_VENDAS.map((chave) => CAMPOS_PLANILHA.find((campo) => campo.chave === chave)!);
   const vendas = XLSX.utils.aoa_to_sheet([campos.map((campo) => campo.titulo)]);
-  vendas["!cols"] = campos.map((campo) => ({ wch: campo.chave === "produto" ? 30 : 25 }));
+  vendas["!cols"] = campos.map((campo) => ({ wch: campo.chave === "categoria" ? 28 : 22 }));
   XLSX.utils.book_append_sheet(wb, vendas, "Vendas");
   return wb;
 }
 
-export function gerarModeloCopa(cadastros: CadastrosImportacao): void {
-  XLSX.writeFile(criarModeloCopa(cadastros), "modelo-campanhas-jj.xlsx");
+export function gerarModelo(): void {
+  XLSX.writeFile(criarModelo(), "modelo-campanhas-jj.xlsx");
 }

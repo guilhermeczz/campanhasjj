@@ -33,7 +33,7 @@ export default function LoginPage() {
       <section className="card p-6 sm:p-8">
         <p className="section-eyebrow">Copa dos Campeões</p>
         <h1 className="mt-3 text-2xl font-semibold">Entre na sua conta</h1>
-        <p className="mt-2 text-sm leading-relaxed text-white/60">Acompanhe suas vendas e sua classificação em cada campanha.</p>
+        <p className="mt-2 text-sm leading-relaxed text-white/60">Acompanhe sua classificação e sua evolução em cada campanha.</p>
         {loading || user ? <p className="mt-6 text-sm text-white/60" role="status">Preparando seu acesso…</p> : <form onSubmit={entrar} className="mt-6">
           <fieldset disabled={busy} className="space-y-4">
             <div><label htmlFor="username" className="field-label">Usuário</label><input id="username" className="input" required maxLength={80} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Ex.: joao.silva" /></div>

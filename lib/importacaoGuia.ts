@@ -1,19 +1,28 @@
-/** Column names in Excel; explanations stay in the app. */
-export const CLIENTE_PADRAO = "NAO-INFORMADO";
-/** Colunas do modelo baixado: 6 obrigatórias + data (opcional, mas recomendada). */
-export const MODELO_VENDAS = ["item_id", "vendedor", "produto", "quantidade", "marca_id", "data_faturamento", "valor_bruto"] as const;
+/** Colunas do modelo baixado: as três colunas obrigatórias da planilha de vendas. */
+export const MODELO_VENDAS = ["vendedor", "valor_vendido", "categoria"] as const;
+
 export const CAMPOS_PLANILHA = [
-  { chave: "item_id", titulo: "Código do item", exemplo: "NF-12345-ITEM-1", ajuda: "Identifique cada linha da planilha com um código único. Não é o código do produto: para vender o mesmo produto 2 vezes (mesmo vendedor ou vendedores diferentes), use códigos diferentes, como NF-12345-ITEM-1 e NF-12345-ITEM-2. O código do produto vai na coluna Produto. Use sempre o mesmo código para corrigir essa venda.", opcional: false },
-  { chave: "vendedor", titulo: "Vendedor", exemplo: "joao.silva", ajuda: "Use o login, como joao.silva, em vez do nome completo. Consulte os vendedores nesta página.", opcional: false },
-  { chave: "produto", titulo: "Produto", exemplo: "Conector 221", ajuda: "Informe o código ou nome de um produto cadastrado na marca. Pontos = valor líquido vendido × pontos por real do produto.", opcional: false },
-  { chave: "quantidade", titulo: "Quantidade", exemplo: "10", ajuda: "Informe a quantidade deste item. Deve ser maior que zero.", opcional: false },
-  { chave: "marca_id", titulo: "Código da marca", exemplo: "Consulte as marcas abaixo", ajuda: "Consulte o código da marca nesta página. Ele direciona a venda à campanha certa. Não use apenas o nome da marca.", opcional: false },
-  { chave: "data_faturamento", titulo: "Data do faturamento", exemplo: "01/10/2026 09:30:00", ajuda: "Opcional: pode deixar em branco ou remover a coluna. Para uma venda nova, usamos a data de importação mostrada na revisão. Ao reenviar um item existente, mantemos sua data anterior. Para informar outra data, use dd/mm/aaaa, com horário opcional, no horário de São Paulo.", opcional: true },
-  { chave: "valor_bruto", titulo: "Valor da venda (R$)", exemplo: "1000,00", ajuda: "Informe o valor total deste item antes das devoluções e cancelamentos. Ex.: 10 unidades de R$ 100 = R$ 1.000. Não repita o total da nota em cada produto.", opcional: false },
-  { chave: "cliente_id", titulo: "Código do cliente", exemplo: "000123", ajuda: "Opcional: use o código do cliente no seu sistema, repetindo o mesmo código em todas as compras dele. Formate como Texto para preservar zeros. Sem essa coluna, o desempate por clientes diferentes fica neutro e a decisão vai para o faturamento geral.", opcional: true },
-  { chave: "valor_devolucao", titulo: "Devolução (R$)", exemplo: "100,00", ajuda: "Preencha só se houve devolução. Informe o valor total devolvido deste item, como número positivo. Em branco significa zero.", opcional: true },
-  { chave: "valor_cancelamento", titulo: "Cancelamento (R$)", exemplo: "50,00", ajuda: "Preencha só se houve cancelamento parcial. Informe o valor cancelado como número positivo e mantenha a situação faturado. Em branco significa zero.", opcional: true },
-  { chave: "status", titulo: "Situação", exemplo: "faturado", ajuda: "Em branco significa faturado. Use cancelado para cancelamento total ou pendente para venda ainda não faturada. Cancelados e pendentes não somam no ranking.", opcional: true }
+  {
+    chave: "vendedor",
+    titulo: "Vendedor",
+    exemplo: "joao.silva",
+    ajuda: "Use o nome ou o login do vendedor cadastrado. Consulte a lista de vendedores nesta página. Cada linha representa uma venda de um vendedor.",
+    opcional: false
+  },
+  {
+    chave: "valor_vendido",
+    titulo: "Valor Vendido",
+    exemplo: "1000,00",
+    ajuda: "Informe o valor vendido nesta linha, em reais, maior ou igual a zero e com até duas casas decimais. O ranking soma o valor vendido de cada vendedor.",
+    opcional: false
+  },
+  {
+    chave: "categoria",
+    titulo: "Categoria",
+    exemplo: "Tubos",
+    ajuda: "Informe o nome de uma categoria já cadastrada. Categorias não cadastradas bloqueiam a importação; cadastre-as antes em Categorias.",
+    opcional: false
+  }
 ] as const;
 
 export function normalizarCabecalho(valor: string): string {

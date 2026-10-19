@@ -16,7 +16,7 @@ export default function ConfirmUndoImport({ registro, busy, error, onCancel, onC
     <h2 id="desfazer-titulo" className="text-xl font-semibold">Desfazer esta importação?</h2>
     <div id="desfazer-descricao" className="mt-3 space-y-3 text-sm leading-6 text-white/70">
       <p className="break-all font-medium text-white">{registro?.arquivo}</p>
-      <p>Serão removidas <strong className="text-white">{registro?.inseridas} vendas novas</strong> e restauradas <strong className="text-white">{registro?.atualizadas} vendas atualizadas</strong> para os valores anteriores. Os pontos e o ranking serão atualizados.</p>
+      <p>Serão removidas <strong className="text-white">{registro?.inseridas} vendas</strong> no valor total de <strong className="text-white">{(registro?.valor_total ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>. O ranking será atualizado.</p>
       <p>O histórico e a prévia serão preservados. Para aplicar essas vendas novamente, será necessário importar a planilha outra vez.</p>
     </div>
     {error && <p role="alert" className="error-message mt-4">{error}</p>}

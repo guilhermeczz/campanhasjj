@@ -11,7 +11,7 @@ export default function PainelVendedor() {
   const [busca, setBusca] = useState("");
 
   const porMarca = useMemo(
-    () => campanhas.filter((c) => c.tipo === "faturamento_marca" && c.marca_id && (c.ativa || rankings.some((r) => r.campanha_id === c.id))),
+    () => campanhas.filter((c) => c.ativa || rankings.some((r) => r.campanha_id === c.id)),
     [campanhas, rankings]
   );
 
@@ -27,10 +27,12 @@ export default function PainelVendedor() {
   }, [porMarca, selecionada]);
 
   const campanha = porMarca.find((c) => c.id === selecionada) || null;
-  const linha = campanha ? rankings.find((r) => r.campanha_id === campanha.id) : null;
+  const minhas = campanha
+    ? rankings.filter((r) => r.campanha_id === campanha.id).slice().sort((a, b) => a.posicao - b.posicao || a.categoria_nome.localeCompare(b.categoria_nome, "pt-BR"))
+    : [];
   const ativas = porMarca.filter((c) => c.ativa).length;
 
-  return <AppShell role="vendedor" title="Minha posição" subtitle="Escolha uma campanha no menu para ver sua posição.">
+  return <AppShell role="vendedor" title="Minha posição" subtitle="Escolha uma campanha e veja sua posição em cada categoria.">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-white/60">{ativas} campanhas ativas · {porMarca.length} no total</p>
       <button type="button" className="btn-ghost" disabled={loading} onClick={() => void recarregar()}>Atualizar</button>
@@ -42,7 +44,8 @@ export default function PainelVendedor() {
           <div className="p-2"><label htmlFor="buscar-campanha-vendedor" className="sr-only">Buscar campanha</label><input id="buscar-campanha-vendedor" className="input" type="search" placeholder="Buscar campanha" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
           <ul className="max-h-[60vh] space-y-1 overflow-y-auto p-2 pt-0">
             {filtradas.map((c) => {
-              const pos = rankings.find((r) => r.campanha_id === c.id)?.posicao;
+              const minhasDoC = rankings.filter((r) => r.campanha_id === c.id);
+              const melhor = minhasDoC.length ? Math.min(...minhasDoC.map((r) => r.posicao)) : 0;
               const ativo = c.id === selecionada;
               return <li key={c.id}>
                 <button
@@ -52,7 +55,7 @@ export default function PainelVendedor() {
                   className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${ativo ? "bg-jj-yellow/15 font-semibold text-white" : "text-white/75 hover:bg-white/5"}`}
                 >
                   <span className="min-w-0"><span className="block truncate">{c.nome}</span>{!c.ativa && <span className="block text-xs font-normal text-white/45">Pausada</span>}</span>
-                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${pos ? "bg-jj-yellow/20 text-jj-yellow" : "bg-white/5 text-white/50"}`}>{pos ? `${pos}º` : "—"}</span>
+                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${melhor ? "bg-jj-yellow/20 text-jj-yellow" : "bg-white/5 text-white/50"}`}>{melhor ? `${melhor}º` : "—"}</span>
                 </button>
               </li>;
             })}
@@ -60,14 +63,14 @@ export default function PainelVendedor() {
           </ul>
         </nav>
 
-        <section className="card p-5" aria-live="polite" aria-label={campanha ? `Sua posição em ${campanha.nome}` : "Posição"}>
+        <section className="card p-5" aria-live="polite" aria-label={campanha ? `Suas posições em ${campanha.nome}` : "Posição"}>
           {!campanha ? <p className="text-sm text-white/60">Selecione uma campanha no menu.</p> : <>
             <p className="section-eyebrow">{campanha.nome}</p>
             <p className="mt-1 text-xs text-white/50">{formatarData(campanha.data_inicio)} a {formatarData(campanha.data_fim)}</p>
-            {linha
-              ? <p className="mt-4 text-5xl font-semibold tracking-tight text-jj-yellow">{linha.posicao}º <span className="text-base font-normal text-white/60">lugar</span></p>
+            {minhas.length
+              ? <ul className="mt-5 space-y-3">{minhas.map((r) => <li key={r.categoria_nome} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4"><div className="min-w-0"><p className="text-xs uppercase tracking-wide text-white/50">Categoria</p><p className="mt-0.5 break-words font-semibold">{r.categoria_nome}</p></div><p className="shrink-0 text-3xl font-semibold tracking-tight text-jj-yellow">{r.posicao}º</p></li>)}</ul>
               : <p className="mt-4 text-lg font-semibold text-white/70">Ainda sem posição</p>}
-            <p className="mt-2 text-xs leading-5 text-white/55">{linha ? "Sua colocação atual nesta campanha." : "Sua posição aparece aqui quando suas vendas válidas entrarem no ranking."}</p>
+            <p className="mt-3 text-xs leading-5 text-white/55">{minhas.length ? "Sua colocação em cada categoria da campanha." : "Sua posição aparece aqui quando suas vendas válidas entrarem no ranking da categoria."}</p>
           </>}
         </section>
       </div>

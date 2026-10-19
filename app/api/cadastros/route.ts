@@ -5,7 +5,7 @@ export async function POST(request: Request) {
     sameOrigin(request);
     const session = await token();
     const values = await body(request);
-    if (!["campanhas", "marcas", "produtos", "vendedores"].includes(String(values.entidade)) ||
+    if (!["campanhas", "categorias", "vendedores"].includes(String(values.entidade)) ||
       !values.item || typeof values.item !== "object" || Array.isArray(values.item)) {
       throw new ApiError("Cadastro inválido.");
     }

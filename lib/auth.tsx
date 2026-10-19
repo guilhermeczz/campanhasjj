@@ -16,7 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    for (const key of ["jj-user", "jj-vendedores", "jj-vendas", "jj-campanhas", "jj-marcas", "jj-produtos"]) {
+    for (const key of ["jj-user", "jj-vendedores", "jj-vendas", "jj-campanhas", "jj-marcas", "jj-produtos", "jj-categorias"]) {
       localStorage.removeItem(key);
     }
     let mounted = true;
