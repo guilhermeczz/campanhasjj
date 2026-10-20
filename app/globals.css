@@ -37,6 +37,12 @@ input[type="file"] { max-width: 100%; }
   .skip-link { @apply fixed left-4 top-4 z-50 -translate-y-24 rounded-lg bg-jj-yellow px-4 py-3 font-bold text-black focus:translate-y-0; }
 }
 
+@keyframes mensagem-entrada {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.mensagem-semana { animation: mensagem-entrada 700ms cubic-bezier(.22,.61,.36,1) both; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }

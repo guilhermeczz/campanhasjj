@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { User } from "./types";
 import { api } from "./http";
+import { CHAVE_MENSAGEM_PENDENTE } from "./mensagens";
 
 interface AuthCtx {
   user: User | null;
@@ -34,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await api<{ user: User }>("/api/session", {
         method: "POST", body: JSON.stringify({ username: username.trim().toLowerCase(), senha })
       });
+      if (result.user.role === "vendedor") {
+        try { sessionStorage.setItem(CHAVE_MENSAGEM_PENDENTE, "1"); } catch { /* armazenamento indisponível */ }
+      }
       setUser(result.user);
       return null;
     } catch (error) {
@@ -42,7 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
   async function logout() {
     try { await api("/api/session", { method: "DELETE" }); }
-    finally { setUser(null); window.location.assign("/login"); }
+    finally {
+      try { sessionStorage.removeItem(CHAVE_MENSAGEM_PENDENTE); } catch { /* armazenamento indisponível */ }
+      setUser(null);
+      window.location.assign("/login");
+    }
   }
   return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;
 }

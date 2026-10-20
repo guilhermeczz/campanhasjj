@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
+import { CHAVE_MENSAGEM_PENDENTE } from "@/lib/mensagens";
 import AppShell from "@/components/AppShell";
+import MensagemSemana from "@/components/MensagemSemana";
 import { formatarData } from "@/components/CampaignPicker";
 
 export default function PainelVendedor() {
   const { campanhas, rankings, recarregar, loading } = useStore();
   const [selecionada, setSelecionada] = useState("");
   const [busca, setBusca] = useState("");
+  const [mostrarMensagem, setMostrarMensagem] = useState<boolean | null>(null);
 
   const porMarca = useMemo(
     () => campanhas.filter((c) => c.ativa || rankings.some((r) => r.campanha_id === c.id)),
@@ -26,11 +29,33 @@ export default function PainelVendedor() {
     if (!porMarca.some((c) => c.id === selecionada)) setSelecionada(porMarca[0].id);
   }, [porMarca, selecionada]);
 
+  useEffect(() => {
+    try { setMostrarMensagem(sessionStorage.getItem(CHAVE_MENSAGEM_PENDENTE) === "1"); }
+    catch { setMostrarMensagem(false); }
+  }, []);
+
+  function verRanking() {
+    try { sessionStorage.removeItem(CHAVE_MENSAGEM_PENDENTE); } catch { /* armazenamento indisponível */ }
+    setMostrarMensagem(false);
+  }
+
   const campanha = porMarca.find((c) => c.id === selecionada) || null;
   const minhas = campanha
     ? rankings.filter((r) => r.campanha_id === campanha.id).slice().sort((a, b) => a.posicao - b.posicao || a.categoria_nome.localeCompare(b.categoria_nome, "pt-BR"))
     : [];
   const ativas = porMarca.filter((c) => c.ativa).length;
+
+  if (mostrarMensagem === null) {
+    return <AppShell role="vendedor" title="Minha posição">
+      <div className="card p-8" role="status"><p className="text-sm text-white/60">Preparando seu acesso…</p></div>
+    </AppShell>;
+  }
+
+  if (mostrarMensagem) {
+    return <AppShell role="vendedor" title="Uma mensagem para você" subtitle="Leia a mensagem da semana e clique no botão para ver sua posição no ranking.">
+      <MensagemSemana onContinuar={verRanking} />
+    </AppShell>;
+  }
 
   return <AppShell role="vendedor" title="Minha posição" subtitle="Escolha uma campanha e veja sua posição em cada categoria.">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
