@@ -97,6 +97,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void recarregar(); return () => { requestId.current++; }; }, [recarregar]);
 
+  useEffect(() => {
+    setCampanhaSelecionada((atual) => {
+      if (!dados.campanhas.length) return "";
+      if (atual && dados.campanhas.some((c) => c.id === atual)) return atual;
+      return (dados.campanhas.find((c) => c.ativa) ?? dados.campanhas[0]).id;
+    });
+  }, [dados.campanhas]);
+
   async function salvar(entidade: string, item: Campanha | Categoria | VendedorFull) {
     await api("/api/cadastros", { method: "POST", body: JSON.stringify({ entidade, item }) });
     await recarregar();
@@ -106,6 +114,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       method: "POST", body: JSON.stringify({ linhas, campanha_id: campanhaId, arquivo })
     });
     await recarregar();
+    setCampanhaSelecionada(campanhaId);
     return result;
   }
   async function excluirVendedor(id: string) {
